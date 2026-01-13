@@ -122,7 +122,12 @@ onRoomUpdate((roomData) => {
 
 function update(dt) {
   // Don't update if race hasn't started or is finished
-  if (!isRaceStarted() || finished) {
+  if (!isRaceStarted()) {
+    // Still allow some basic updates even when waiting
+    return;
+  }
+  
+  if (finished) {
     return;
   }
 
