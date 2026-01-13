@@ -718,8 +718,11 @@ Game.run({
 
 function reset(options) {
   options       = options || {};
-  canvas.width  = width  = Util.toInt(options.width,          width);
-  canvas.height = height = Util.toInt(options.height,         height);
+  // Update to fullscreen
+  width  = window.innerWidth || 1920;
+  height = window.innerHeight || 1080;
+  canvas.width  = width;
+  canvas.height = height;
   lanes                  = Util.toInt(options.lanes,          lanes);
   roadWidth              = Util.toInt(options.roadWidth,      roadWidth);
   cameraHeight           = Util.toInt(options.cameraHeight,   cameraHeight);
