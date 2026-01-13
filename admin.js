@@ -140,15 +140,30 @@ function updateMinimap() {
   // Clear canvas
   minimapCtx.clearRect(0, 0, width, height);
 
-  // Draw track outline
+  // Draw track outline - simplified curved path
   minimapCtx.strokeStyle = '#333';
   minimapCtx.lineWidth = 2;
   minimapCtx.beginPath();
-  minimapCtx.moveTo(padding, padding);
-  minimapCtx.lineTo(width - padding, padding);
-  minimapCtx.lineTo(width - padding, height - padding);
-  minimapCtx.lineTo(padding, height - padding);
-  minimapCtx.closePath();
+  
+  // Draw a curved track path (simplified S-curve)
+  const trackWidth = width - 2 * padding;
+  const trackHeight = height - 2 * padding;
+  const centerX = padding + trackWidth * 0.5;
+  
+  minimapCtx.moveTo(centerX, padding);
+  // Create a curved path down the minimap
+  for (let i = 0; i <= 20; i++) {
+    const progress = i / 20;
+    const y = padding + trackHeight * progress;
+    // Add slight curve based on progress (S-curve)
+    const curveOffset = Math.sin(progress * Math.PI * 2) * (trackWidth * 0.2);
+    const x = centerX + curveOffset;
+    if (i === 0) {
+      minimapCtx.moveTo(x, y);
+    } else {
+      minimapCtx.lineTo(x, y);
+    }
+  }
   minimapCtx.stroke();
 
   // Calculate track length from max position or use default
@@ -166,9 +181,14 @@ function updateMinimap() {
     const position = playerData.position || 0;
     const progress = Math.min(1, position / currentTrackLength);
 
-    // Calculate position on minimap (top to bottom)
-    const x = padding + (width - 2 * padding) * 0.5; // Center horizontally
-    const y = padding + (height - 2 * padding) * progress;
+    // Calculate position on minimap following the curved track
+    const trackWidth = width - 2 * padding;
+    const trackHeight = height - 2 * padding;
+    const centerX = padding + trackWidth * 0.5;
+    const y = padding + trackHeight * progress;
+    // Match the curve of the track
+    const curveOffset = Math.sin(progress * Math.PI * 2) * (trackWidth * 0.2);
+    const x = centerX + curveOffset;
 
     // Draw player dot
     minimapCtx.fillStyle = playerData.nitro ? '#ff9800' : '#2196F3';

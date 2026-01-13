@@ -431,10 +431,12 @@ function renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPerc
     
     // Render if player is within view distance (both ahead and slightly behind)
     var maxViewDistance = drawDistance * segmentLength;
-    if (Math.abs(remoteZ) > maxViewDistance) return;
+    // Allow rendering if players are close together (within 5 segments)
+    var closeDistance = 5 * segmentLength;
+    if (Math.abs(remoteZ) > maxViewDistance && Math.abs(remoteZ) > closeDistance) return;
     
-    // If player is behind camera, skip (but allow if very close)
-    if (remoteZ < -playerZ * 0.5) return;
+    // If player is too far behind camera, skip (but allow if very close or at start)
+    if (remoteZ < -playerZ && Math.abs(remoteZ) > closeDistance) return;
 
     var remoteSegment = findSegment(remotePosition);
     var remotePercent = Util.percentRemaining(remotePosition, segmentLength);
