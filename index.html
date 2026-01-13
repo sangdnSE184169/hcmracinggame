@@ -1,18 +1,69 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html>
 <head>
-  <title>Javascript Racer</title>
+  <title>Multiplayer Racing Game</title>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-</head> 
+  <link href="common.css" rel="stylesheet" type="text/css" />
+  <link href="styles-mp.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+  <div id="racer">
+    <div id="hud">
+      <span id="speed" class="hud"><span id="speed_value" class="value">0</span> mph</span>
+      <span id="current_lap_time" class="hud">Time: <span id="current_lap_time_value" class="value">0.0</span></span> 
+      <span id="last_lap_time" class="hud" style="display: none;">Last Lap: <span id="last_lap_time_value" class="value">0.0</span></span>
+      <span id="fast_lap_time" class="hud">Fastest Lap: <span id="fast_lap_time_value" class="value">0.0</span></span>
+      <span id="nitro-indicator" class="hud nitro-active" style="display: none;">⚡ NITRO</span>
+    </div>
+    <canvas id="canvas">
+      Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
+    </canvas>
+    Loading...
+  </div>
 
-<body> 
+  <!-- Quiz Overlay -->
+  <div id="quizOverlay" class="quiz-overlay">
+    <div class="quiz-container">
+      <div id="quizTimer" class="quiz-timer">5.0s</div>
+      <div id="quizQuestion" class="quiz-question"></div>
+      <div id="quizOptions" class="quiz-options"></div>
+    </div>
+  </div>
 
-  <ul>
-    <li><a href='v1.straight.html'>Version 1 - Straight</a></li>
-    <li><a href='v2.curves.html'>Version 2 - Curves</a></li>
-    <li><a href='v3.hills.html'>Version 3 - Hills</a></li>
-    <li><a href='v4.final.html'>Version 4 - Final</a></li>
-  </ul>
+  <!-- Waiting for race to start -->
+  <div id="waitingOverlay" class="quiz-overlay" style="display: flex;">
+    <div class="quiz-container">
+      <h2>Waiting for race to start...</h2>
+      <p>Room ID: <span id="waitingRoomId"></span></p>
+    </div>
+  </div>
 
-</body> 
+  <audio id='music'>
+    <source src="music/racer.ogg">
+    <source src="music/racer.mp3">
+  </audio>
+  <span id="mute"></span>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  
+  <script>
+    // Firebase config for hcmracing project
+    window.FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCUCSUoJRU0pH8iyOA1u8YWvD0DCS1NnXY",
+      authDomain: "hcmracing-2e926.firebaseapp.com",
+      databaseURL: "https://hcmracing-2e926-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "hcmracing-2e926",
+      storageBucket: "hcmracing-2e926.firebasestorage.app",
+      messagingSenderId: "1044481928732",
+      appId: "1:1044481928732:web:1e41550f339eb3855639d9"
+    };
+  </script>
+
+  <script src="stats.js"></script>
+  <script src="common.js"></script>
+  <script type="module" src="racer.js"></script>
+</body>
 </html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard - Multiplayer Racing</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  <link href="common.css" rel="stylesheet" type="text/css" />
+  <link href="styles-mp.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+  <div class="admin-container">
+    <div class="admin-header">
+      <h1>🏎️ Admin Dashboard</h1>
+      <div class="admin-controls">
+        <input type="text" id="roomIdInput" placeholder="Room ID" />
+        <button id="loadRoom" class="admin-btn">Load Room</button>
+        <button id="startRace" class="admin-btn">Start Race</button>
+        <button id="endRace" class="admin-btn danger">End Race</button>
+      </div>
+    </div>
+
+    <div id="roomInfo" style="display: none;">
+      <h2>Room: <span id="currentRoomId"></span></h2>
+      
+      <div class="minimap-container">
+        <h3>Minimap</h3>
+        <canvas id="minimap" class="minimap"></canvas>
+      </div>
+
+      <div class="ranking-list">
+        <h3>Rankings</h3>
+        <div id="rankingList"></div>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <h3>Quiz Control</h3>
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 5px;">
+          <div style="margin-bottom: 10px;">
+            <label>Question:</label>
+            <input type="text" id="quizQuestion" style="width: 100%; padding: 5px;" placeholder="Enter question" />
+          </div>
+          <div style="margin-bottom: 10px;">
+            <label>Option 1:</label>
+            <input type="text" id="quizOption1" style="width: 100%; padding: 5px;" placeholder="Option 1" />
+          </div>
+          <div style="margin-bottom: 10px;">
+            <label>Option 2:</label>
+            <input type="text" id="quizOption2" style="width: 100%; padding: 5px;" placeholder="Option 2" />
+          </div>
+          <div style="margin-bottom: 10px;">
+            <label>Option 3:</label>
+            <input type="text" id="quizOption3" style="width: 100%; padding: 5px;" placeholder="Option 3" />
+          </div>
+          <div style="margin-bottom: 10px;">
+            <label>Option 4:</label>
+            <input type="text" id="quizOption4" style="width: 100%; padding: 5px;" placeholder="Option 4" />
+          </div>
+          <div style="margin-bottom: 10px;">
+            <label>Correct Answer (0-3):</label>
+            <input type="number" id="quizCorrect" min="0" max="3" value="0" style="width: 100%; padding: 5px;" />
+          </div>
+          <button id="startQuiz" class="admin-btn">Start Quiz</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="winnerModal" class="winner-modal">
+      <div class="winner-content">
+        <h2>🏆 Race Finished!</h2>
+        <p id="winnerName"></p>
+        <button class="admin-btn" onclick="document.getElementById('winnerModal').classList.remove('active')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  
+  <script>
+    // Firebase config for hcmracing project
+    window.FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCUCSUoJRU0pH8iyOA1u8YWvD0DCS1NnXY",
+      authDomain: "hcmracing-2e926.firebaseapp.com",
+      databaseURL: "https://hcmracing-2e926-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "hcmracing-2e926",
+      storageBucket: "hcmracing-2e926.firebasestorage.app",
+      messagingSenderId: "1044481928732",
+      appId: "1:1044481928732:web:1e41550f339eb3855639d9"
+    };
+  </script>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

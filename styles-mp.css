@@ -1,0 +1,330 @@
+/*=========================================================================
+  Multiplayer Styles
+  =========================================================================*/
+
+.lobby-container {
+  max-width: 500px;
+  margin: 50px auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.lobby-form {
+  background: #f5f5f5;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin: 20px 0;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #333;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 12px 30px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  margin: 5px;
+  transition: background 0.3s;
+}
+
+.btn-primary {
+  background: #4CAF50;
+  color: white;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background: #45a049;
+}
+
+.btn-secondary {
+  background: #2196F3;
+  color: white;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background: #0b7dda;
+}
+
+.error-message {
+  color: #f44336;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.loading {
+  color: #2196F3;
+  margin-top: 10px;
+}
+
+.lobby-info {
+  margin-top: 20px;
+  color: #666;
+}
+
+.lobby-info a {
+  color: #2196F3;
+  text-decoration: none;
+}
+
+.lobby-info a:hover {
+  text-decoration: underline;
+}
+
+/* Quiz Overlay */
+.quiz-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.quiz-overlay.active {
+  display: flex;
+}
+
+.quiz-container {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  max-width: 600px;
+  width: 90%;
+  text-align: center;
+}
+
+.quiz-question {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.quiz-timer {
+  font-size: 48px;
+  font-weight: bold;
+  color: #f44336;
+  margin-bottom: 20px;
+}
+
+.quiz-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.quiz-option {
+  padding: 20px;
+  background: #f5f5f5;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.3s;
+}
+
+.quiz-option:hover {
+  background: #e0e0e0;
+  border-color: #4CAF50;
+}
+
+.quiz-option.selected {
+  background: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+}
+
+/* Admin Dashboard */
+.admin-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.admin-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #2196F3;
+  color: white;
+}
+
+.admin-btn:hover {
+  background: #0b7dda;
+}
+
+.admin-btn.danger {
+  background: #f44336;
+}
+
+.admin-btn.danger:hover {
+  background: #da190b;
+}
+
+.minimap-container {
+  background: #f5f5f5;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.minimap {
+  width: 100%;
+  height: 400px;
+  background: #e0e0e0;
+  border: 2px solid #333;
+  position: relative;
+  border-radius: 5px;
+}
+
+.player-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+  transform: translate(-50%, -50%);
+}
+
+.player-label {
+  position: absolute;
+  font-size: 10px;
+  color: white;
+  background: rgba(0,0,0,0.7);
+  padding: 2px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  margin-top: -5px;
+}
+
+.ranking-list {
+  background: white;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.ranking-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.ranking-item:last-child {
+  border-bottom: none;
+}
+
+.ranking-item.first {
+  background: #fff9c4;
+  font-weight: bold;
+}
+
+.ranking-position {
+  font-weight: bold;
+  color: #666;
+}
+
+.ranking-name {
+  flex: 1;
+  margin-left: 10px;
+}
+
+.ranking-stats {
+  color: #999;
+  font-size: 14px;
+}
+
+/* Nitro indicator */
+.nitro-active {
+  color: #ff9800 !important;
+  font-weight: bold;
+}
+
+/* Winner modal */
+.winner-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.winner-modal.active {
+  display: flex;
+}
+
+.winner-content {
+  background: white;
+  padding: 40px;
+  border-radius: 10px;
+  text-align: center;
+  max-width: 500px;
+}
+
+.winner-content h2 {
+  color: #4CAF50;
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+
+.winner-content p {
+  font-size: 18px;
+  color: #666;
+  margin: 10px 0;
+}
