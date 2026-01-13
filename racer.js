@@ -481,6 +481,11 @@ function renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPerc
       }
     }
   });
+
+  // Render remote players after all segments are drawn
+  if (remotePlayers && remotePlayers.length > 0) {
+    renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPercent, playerY);
+  }
 }
 
 /**
