@@ -14,8 +14,8 @@ if (!initFirebase()) {
 // Game constants
 var fps            = 60;
 var step           = 1/fps;
-var width          = 1024;
-var height         = 768;
+var width          = window.innerWidth || 1920;
+var height         = window.innerHeight || 1080;
 var centrifugal    = 0.3;
 var skySpeed       = 0.001;
 var hillSpeed      = 0.002;
@@ -25,7 +25,7 @@ var hillOffset     = 0;
 var treeOffset     = 0;
 var segments       = [];
 var cars           = [];
-var stats          = Game.stats('fps');
+var stats          = null; // Disabled for fullscreen
 var canvas         = Dom.get('canvas');
 var ctx            = canvas.getContext('2d');
 var background     = null;
@@ -454,7 +454,7 @@ function renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPerc
   });
 
   // Render remote players after all segments are drawn
-  renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPercent, playerY, x, dx);
+  renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPercent, playerY);
 }
 
 /**
@@ -695,7 +695,7 @@ if (urlRoomId) {
 }
 
 Game.run({
-  canvas: canvas, render: render, update: update, stats: stats, step: step,
+  canvas: canvas, render: render, update: update, stats: null, step: step,
   images: ["background", "sprites"],
   keys: [
     { keys: [KEY.LEFT,  KEY.A], mode: 'down', action: function() { keyLeft   = true;  } },

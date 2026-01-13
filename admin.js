@@ -19,7 +19,8 @@ let roomData = null;
 let roomListener = null;
 let minimapCanvas = null;
 let minimapCtx = null;
-const TRACK_LENGTH = 20000; // Approximate track length
+// Track length will be calculated from actual game data
+let TRACK_LENGTH = 20000; // Default, will be updated from room data
 
 // Initialize auth
 onAuthStateChanged(async (user) => {
@@ -150,11 +151,20 @@ function updateMinimap() {
   minimapCtx.closePath();
   minimapCtx.stroke();
 
-  // Draw players
+  // Calculate track length from max position or use default
   const players = Object.entries(roomData.players);
+  let maxPosition = 0;
+  players.forEach(([uid, playerData]) => {
+    const pos = playerData.position || 0;
+    if (pos > maxPosition) maxPosition = pos;
+  });
+  // Use max position + buffer, or default if no players have moved
+  const currentTrackLength = maxPosition > 1000 ? maxPosition + 1000 : TRACK_LENGTH;
+  
+  // Draw players
   players.forEach(([uid, playerData]) => {
     const position = playerData.position || 0;
-    const progress = Math.min(1, position / TRACK_LENGTH);
+    const progress = Math.min(1, position / currentTrackLength);
 
     // Calculate position on minimap (top to bottom)
     const x = padding + (width - 2 * padding) * 0.5; // Center horizontally
