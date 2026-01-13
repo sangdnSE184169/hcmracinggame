@@ -452,9 +452,6 @@ function renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPerc
       }
     }
   });
-
-  // Render remote players after all segments are drawn
-  renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPercent, playerY);
 }
 
 /**
