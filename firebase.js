@@ -118,9 +118,11 @@ export function off(ref, eventType, callback) {
 }
 
 export function signInAnonymously() {
-  return getAuth().signInAnonymously();
+  const auth = getAuth();
+  return auth.signInAnonymously();
 }
 
 export function onAuthStateChanged(callback) {
-  return getAuth().onAuthStateChanged(callback);
+  const auth = getAuth();
+  return auth.onAuthStateChanged(callback);
 }

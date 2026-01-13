@@ -50,31 +50,103 @@
   <script type="module">
     import { getAuth, getDatabase, ref, set, get, signInAnonymously, onAuthStateChanged, initFirebase } from './firebase.js';
 
-    // Initialize Firebase
-    if (!initFirebase()) {
-      console.error('Failed to initialize Firebase');
+    let currentUser = null;
+    let auth, db;
+
+    // Wait for Firebase to load
+    function waitForFirebase() {
+      return new Promise((resolve) => {
+        if (typeof firebase !== 'undefined') {
+          if (initFirebase()) {
+            auth = getAuth();
+            db = getDatabase();
+            resolve();
+          } else {
+            setTimeout(() => waitForFirebase().then(resolve), 100);
+          }
+        } else {
+          setTimeout(() => waitForFirebase().then(resolve), 100);
+        }
+      });
     }
 
-    const auth = getAuth();
-    const db = getDatabase();
-    let currentUser = null;
+    // Initialize Firebase and auth
+    waitForFirebase().then(() => {
+      onAuthStateChanged((user) => {
+        if (user) {
+          currentUser = user;
+        }
+      });
+    });
 
     // Generate random room ID
     function generateRoomId() {
       return Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
-    // Initialize auth
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUser = user;
-      }
-    });
-
-    // Create room button
-    document.getElementById('createRoom').addEventListener('click', () => {
+    // Create room button - tự động tạo room và chuyển đến admin
+    document.getElementById('createRoom').addEventListener('click', async () => {
       const roomId = generateRoomId();
       document.getElementById('roomId').value = roomId;
+      
+      // Tự động join và chuyển đến admin
+      const playerName = document.getElementById('playerName').value.trim() || 'Admin';
+      if (!playerName) {
+        document.getElementById('playerName').value = 'Admin';
+      }
+      
+      // Đợi Firebase sẵn sàng
+      await waitForFirebase();
+      
+      try {
+        // Sign in anonymously
+        if (!currentUser) {
+          await signInAnonymously();
+          await new Promise((resolve) => {
+            const unsubscribe = onAuthStateChanged((user) => {
+              if (user) {
+                currentUser = user;
+                unsubscribe();
+                resolve();
+              }
+            });
+          });
+        }
+
+        // Tạo room với admin
+        const roomRef = ref(`rooms/${roomId}`);
+        await set(roomRef, {
+          status: 'waiting',
+          createdAt: Date.now(),
+          adminId: currentUser.uid,
+          startTime: null,
+          players: {},
+          quiz: {
+            active: false,
+            question: '',
+            options: [],
+            correctIndex: -1,
+            startTime: null
+          },
+          answers: {}
+        });
+
+        // Add admin as player
+        const playerRef = ref(`rooms/${roomId}/players/${currentUser.uid}`);
+        await set(playerRef, {
+          name: playerName || 'Admin',
+          position: 0,
+          speed: 0,
+          nitro: false,
+          finished: false
+        });
+
+        // Redirect to admin dashboard
+        window.location.href = `admin.html?roomId=${roomId}&uid=${currentUser.uid}`;
+      } catch (error) {
+        console.error('Error creating room:', error);
+        document.getElementById('error').textContent = 'Failed to create room: ' + error.message;
+      }
     });
 
     // Join room button
@@ -87,24 +159,27 @@
       errorDiv.textContent = '';
       
       if (!roomId) {
-        errorDiv.textContent = 'Please enter a room ID';
+        errorDiv.textContent = 'Vui lòng nhập Room ID';
         return;
       }
 
       if (!playerName) {
-        errorDiv.textContent = 'Please enter your name';
+        errorDiv.textContent = 'Vui lòng nhập tên của bạn';
         return;
       }
 
       loadingDiv.style.display = 'block';
 
       try {
+        // Đợi Firebase sẵn sàng
+        await waitForFirebase();
+
         // Sign in anonymously if not already signed in
         if (!currentUser) {
-          await signInAnonymously(auth);
+          await signInAnonymously();
           // Wait for auth state to update
           await new Promise((resolve) => {
-            const unsubscribe = onAuthStateChanged(auth, (user) => {
+            const unsubscribe = onAuthStateChanged((user) => {
               if (user) {
                 currentUser = user;
                 unsubscribe();
@@ -112,6 +187,16 @@
               }
             });
           });
+        }
+
+        // Check if room exists
+        const roomRef = ref(`rooms/${roomId}`);
+        const roomSnapshot = await get(roomRef);
+        
+        if (!roomSnapshot.exists()) {
+          errorDiv.textContent = 'Room không tồn tại! Vui lòng tạo room mới.';
+          loadingDiv.style.display = 'none';
+          return;
         }
 
         // Add player to room
@@ -124,32 +209,11 @@
           finished: false
         });
 
-        // Initialize room if it doesn't exist
-        const roomRef = ref(`rooms/${roomId}`);
-        const roomSnapshot = await get(roomRef);
-        if (!roomSnapshot.exists()) {
-          await set(roomRef, {
-            status: 'waiting',
-            createdAt: Date.now(),
-            adminId: currentUser.uid,
-            startTime: null,
-            players: {},
-            quiz: {
-              active: false,
-              question: '',
-              options: [],
-              correctIndex: -1,
-              startTime: null
-            },
-            answers: {}
-          });
-        }
-
         // Redirect to game
         window.location.href = `index.html?roomId=${roomId}&uid=${currentUser.uid}`;
       } catch (error) {
         console.error('Error joining room:', error);
-        errorDiv.textContent = 'Failed to join room: ' + error.message;
+        errorDiv.textContent = 'Lỗi khi join room: ' + error.message;
         loadingDiv.style.display = 'none';
       }
     });

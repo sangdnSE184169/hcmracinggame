@@ -22,13 +22,24 @@ let minimapCtx = null;
 const TRACK_LENGTH = 20000; // Approximate track length
 
 // Initialize auth
-onAuthStateChanged(auth, async (user) => {
+onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
   } else {
-    await signInAnonymously(auth);
+    await signInAnonymously();
   }
 });
+
+// Auto-load room from URL if present
+const urlParams = new URLSearchParams(window.location.search);
+const urlRoomId = urlParams.get('roomId');
+if (urlRoomId) {
+  document.getElementById('roomIdInput').value = urlRoomId;
+  // Wait for Firebase to be ready
+  setTimeout(() => {
+    loadRoom(urlRoomId);
+  }, 1000);
+}
 
 // Load room button
 document.getElementById('loadRoom').addEventListener('click', () => {
