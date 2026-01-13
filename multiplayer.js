@@ -35,8 +35,11 @@ export function initMultiplayer() {
   const roomRef = ref(`rooms/${roomId}`);
   onValue(roomRef, (snapshot) => {
     roomData = snapshot.val();
-    if (roomData && roomData.players) {
-      updateRemoteCars();
+    if (roomData) {
+      if (roomData.players) {
+        updateRemoteCars();
+      }
+      // Always call callback when room data changes (including status changes)
       if (onRoomUpdateCallback) {
         onRoomUpdateCallback(roomData);
       }

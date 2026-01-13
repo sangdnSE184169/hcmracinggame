@@ -103,7 +103,10 @@ onRoomUpdate((roomData) => {
 
     // Check if race started
     if (isRaceStarted()) {
-      Dom.get('waitingOverlay').style.display = 'none';
+      const waitingOverlay = Dom.get('waitingOverlay');
+      if (waitingOverlay) {
+        waitingOverlay.style.display = 'none';
+      }
     }
 
     // Check if race finished
@@ -681,9 +684,14 @@ function resetCars() {
 // THE GAME LOOP
 //=========================================================================
 
-// Set waiting room ID
-if (roomId) {
-  Dom.get('waitingRoomId').textContent = roomId;
+// Set waiting room ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+const urlRoomId = urlParams.get('roomId');
+if (urlRoomId) {
+  const waitingRoomIdEl = Dom.get('waitingRoomId');
+  if (waitingRoomIdEl) {
+    waitingRoomIdEl.textContent = urlRoomId;
+  }
 }
 
 Game.run({
