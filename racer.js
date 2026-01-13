@@ -421,29 +421,51 @@ function render() {
  * Render remote players with names
  * Called during the main render loop after segments are projected
  */
-function renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPercent, playerY, x, dx) {
+function renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPercent, playerY) {
   if (!remotePlayers || remotePlayers.length === 0) return;
 
   remotePlayers.forEach((remotePlayer) => {
     var remotePosition = remotePlayer.position || 0;
-    var remoteZ = remotePosition - (position + playerZ);
+    var absolutePosition = position + playerZ;
+    var remoteZ = remotePosition - absolutePosition;
     
-    // Only render if player is ahead and in view distance
-    if (remoteZ < 0 || remoteZ > drawDistance * segmentLength) return;
+    // Render if player is within view distance (both ahead and slightly behind)
+    var maxViewDistance = drawDistance * segmentLength;
+    if (Math.abs(remoteZ) > maxViewDistance) return;
+    
+    // If player is behind camera, skip (but allow if very close)
+    if (remoteZ < -playerZ * 0.5) return;
 
     var remoteSegment = findSegment(remotePosition);
     var remotePercent = Util.percentRemaining(remotePosition, segmentLength);
+    var remoteY = Util.interpolate(remoteSegment.p1.world.y, remoteSegment.p2.world.y, remotePercent);
     
-    // Find which segment in the draw loop this corresponds to
+    // Calculate which segment in the draw loop this corresponds to
     var segmentIndex = remoteSegment.index;
     var baseIndex = baseSegment.index;
     var n = (segmentIndex - baseIndex + segments.length) % segments.length;
     
+    // Handle wrapping
+    if (n >= segments.length) n -= segments.length;
+    if (n < 0) n += segments.length;
+    
     if (n >= 0 && n < drawDistance) {
       var segment = segments[(baseIndex + n) % segments.length];
       
-      // Check if segment is already projected (should be if n < current draw distance)
-      if (segment.p1.screen && segment.p2.screen) {
+      // Project remote player's segment
+      var remoteX = 0;
+      var remoteDx = - (baseSegment.curve * basePercent);
+      for (var i = 0; i < n; i++) {
+        var seg = segments[(baseIndex + i) % segments.length];
+        remoteX = remoteX + remoteDx;
+        remoteDx = remoteDx + seg.curve;
+      }
+      
+      // Project segment for remote player
+      Util.project(segment.p1, (playerX * roadWidth) - remoteX, playerY + cameraHeight, position - (segment.looped ? trackLength : 0), cameraDepth, width, height, roadWidth);
+      Util.project(segment.p2, (playerX * roadWidth) - remoteX - remoteDx, playerY + cameraHeight, position - (segment.looped ? trackLength : 0), cameraDepth, width, height, roadWidth);
+      
+      if (segment.p1.screen && segment.p2.screen && segment.p1.camera.z > cameraDepth) {
         var spriteScale = Util.interpolate(segment.p1.screen.scale, segment.p2.screen.scale, remotePercent);
         var spriteX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, remotePercent);
         var spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, remotePercent);
@@ -453,7 +475,7 @@ function renderRemotePlayers(baseSegment, basePercent, playerSegment, playerPerc
         Render.sprite(ctx, width, height, resolution, roadWidth, sprites, remoteCarSprite, spriteScale, spriteX, spriteY, -0.5, -1, segment.clip);
         
         // Render player name above car
-        renderPlayerName(spriteX, spriteY - 20, remotePlayer.name, false);
+        renderPlayerName(spriteX, spriteY - 30, remotePlayer.name, false);
       }
     }
   });
