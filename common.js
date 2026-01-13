@@ -126,7 +126,7 @@ var Game = {  // a modified version of the game loop from my previous boulderdas
           update(step);
         }
         render();
-        stats.update();
+        if (stats) stats.update();
         last = now;
         requestAnimationFrame(frame, canvas);
       }
