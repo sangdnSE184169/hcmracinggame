@@ -199,14 +199,28 @@
           return;
         }
 
-        // Add player to room - randomize start position slightly
+        // Get room data to calculate lane
+        const roomRef = ref(`rooms/${roomId}`);
+        const roomSnapshot = await get(roomRef);
+        const roomData = roomSnapshot.val() || {};
+        const players = roomData.players || {};
+        const playerCount = Object.keys(players).length;
+        const totalLanes = Math.max(3, playerCount + 1);
+        
+        // Assign lane (1 to totalLanes, centered)
+        const assignedLane = Math.min(playerCount + 1, totalLanes);
+        const laneOffset = ((assignedLane - 1) / (totalLanes - 1)) * 2 - 1; // -1 to 1
+        
+        // Add player to room
         const playerRef = ref(`rooms/${roomId}/players/${currentUser.uid}`);
         await set(playerRef, {
           name: playerName,
-          position: Math.random() * 10, // Small random offset to avoid exact overlap
+          position: 0,
           speed: 0,
           nitro: false,
-          finished: false
+          finished: false,
+          lane: assignedLane,
+          playerX: laneOffset
         });
 
         // Redirect to game

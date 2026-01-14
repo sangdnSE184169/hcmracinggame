@@ -176,10 +176,15 @@ function updateMinimap() {
   // Use max position + buffer, or default if no players have moved
   const currentTrackLength = maxPosition > 1000 ? maxPosition + 1000 : TRACK_LENGTH;
   
+  // Calculate total lanes
+  const totalLanes = Math.max(3, players.length + 1);
+  
   // Draw players
   players.forEach(([uid, playerData]) => {
     const position = playerData.position || 0;
     const progress = Math.min(1, position / currentTrackLength);
+    const playerLane = playerData.lane || 1;
+    const playerX = playerData.playerX || 0;
 
     // Calculate position on minimap following the curved track
     const trackWidth = width - 2 * padding;
@@ -188,7 +193,9 @@ function updateMinimap() {
     const y = padding + trackHeight * progress;
     // Match the curve of the track
     const curveOffset = Math.sin(progress * Math.PI * 2) * (trackWidth * 0.2);
-    const x = centerX + curveOffset;
+    // Add lane offset (spread players horizontally)
+    const laneOffset = (playerX * trackWidth * 0.3);
+    const x = centerX + curveOffset + laneOffset;
 
     // Draw player dot
     minimapCtx.fillStyle = playerData.nitro ? '#ff9800' : '#2196F3';

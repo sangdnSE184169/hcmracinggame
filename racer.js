@@ -88,9 +88,39 @@ if (roomId && uid) {
   initQuiz(roomId, uid);
 }
 
+// Calculate dynamic lanes based on player count
+function updateLanes() {
+  const roomData = getRoomData();
+  if (roomData && roomData.players) {
+    const playerCount = Object.keys(roomData.players).length;
+    lanes = Math.max(3, playerCount + 1); // Minimum 3 lanes, or players + 1
+  }
+}
+
+// Assign lane to player when joining
+function assignLane() {
+  const roomData = getRoomData();
+  if (!roomData || !roomData.players) return 0;
+  
+  const players = Object.values(roomData.players);
+  const usedLanes = players.map(p => p.lane || 0).filter(l => l > 0);
+  const totalLanes = Math.max(3, players.length + 1);
+  
+  // Find first available lane
+  for (let i = 1; i <= totalLanes; i++) {
+    if (!usedLanes.includes(i)) {
+      return i;
+    }
+  }
+  return 1; // Fallback
+}
+
 // Listen for room updates
 onRoomUpdate((roomData) => {
   if (roomData) {
+    // Update lanes based on player count
+    updateLanes();
+    
     // Update nitro status
     const currentPlayer = roomData.players && roomData.players[uid];
     if (currentPlayer) {
@@ -187,6 +217,7 @@ function update(dt) {
     }
   }
 
+  // Collision with AI cars
   for(n = 0 ; n < playerSegment.cars.length ; n++) {
     car  = playerSegment.cars[n];
     carW = car.sprite.w * SPRITES.SCALE;
@@ -199,6 +230,39 @@ function update(dt) {
     }
   }
 
+  // Collision with remote players
+  if (remotePlayers && remotePlayers.length > 0) {
+    var absolutePosition = position + playerZ;
+    remotePlayers.forEach((remotePlayer) => {
+      var remotePosition = remotePlayer.position || 0;
+      var remoteX = remotePlayer.playerX || 0;
+      var remoteSegment = findSegment(remotePosition);
+      
+      // Check if on same segment or very close
+      if (remoteSegment.index === playerSegment.index || 
+          Math.abs(remotePosition - absolutePosition) < segmentLength * 2) {
+        var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
+        
+        // Check collision
+        if (Util.overlap(playerX, playerW, remoteX, remoteW, 0.8)) {
+          // Both players slow down
+          var collisionSpeed = Math.min(speed, remotePlayer.speed || 0) * 0.5;
+          speed = collisionSpeed;
+          
+          // Bounce effect - push players apart
+          if (playerX < remoteX) {
+            playerX = playerX - 0.1;
+          } else {
+            playerX = playerX + 0.1;
+          }
+          
+          // Sync collision to Firebase
+          syncPosition(absolutePosition, speed, nitroActive, finished);
+        }
+      }
+    });
+  }
+
   playerX = Util.limit(playerX, -3, 3);
   speed   = Util.limit(speed, 0, currentMaxSpeed);
 
@@ -206,7 +270,7 @@ function update(dt) {
   var absolutePosition = position + playerZ;
   if (absolutePosition >= trackLength && !finished) {
     finished = true;
-    syncPosition(absolutePosition, speed, nitroActive, true);
+    syncPosition(absolutePosition, speed, nitroActive, true, playerX);
   }
 
   skyOffset  = Util.increase(skyOffset,  skySpeed  * playerSegment.curve * (position-startPosition)/segmentLength, 1);

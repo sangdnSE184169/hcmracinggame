@@ -66,7 +66,9 @@ function updateRemoteCars() {
         position: playerData.position || 0,
         speed: playerData.speed || 0,
         nitro: playerData.nitro || false,
-        finished: playerData.finished || false
+        finished: playerData.finished || false,
+        lane: playerData.lane || 0,
+        playerX: playerData.playerX || 0
       });
     }
   }
