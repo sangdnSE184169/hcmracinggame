@@ -244,10 +244,17 @@ function update(dt) {
       var remotePosition = remotePlayer.position || 0;
       var remoteSpeed = remotePlayer.speed || 0;
       var remoteX = remotePlayer.playerX || 0;
+      
+      // Skip collision check if both players are at start (position < 100)
+      // This prevents collision blocking at spawn
+      if (absolutePosition < 100 && remotePosition < 100) {
+        continue;
+      }
+      
       var remoteSegment = findSegment(remotePosition);
       
       // Only collide if player is faster than remote player (same as AI cars)
-      if (speed > remoteSpeed) {
+      if (speed > remoteSpeed && speed > 0) {
         // Check if on same segment or very close
         if (remoteSegment.index === playerSegment.index || 
             Math.abs(remotePosition - absolutePosition) < segmentLength * 2) {
