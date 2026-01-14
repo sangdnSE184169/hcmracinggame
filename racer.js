@@ -330,15 +330,28 @@ function update(dt) {
   speed   = Util.limit(speed, 0, currentMaxSpeed);
 
   // Check finish line (lap system: 2 laps)
+  // Lap 1: full trackLength, Lap 2: half trackLength (trackLength / 2)
   var absolutePosition = position + playerZ;
   var lapDistance = totalDistance;
-  var lapNumber = Math.floor(lapDistance / trackLength) + 1;
+  var lap1Length = trackLength;
+  var lap2Length = trackLength / 2; // Lap 2 is half of lap 1
+  var totalRaceLength = lap1Length + lap2Length;
+  
+  // Calculate current lap based on distance
+  var lapNumber;
+  if (lapDistance < lap1Length) {
+    lapNumber = 1;
+  } else if (lapDistance < totalRaceLength) {
+    lapNumber = 2;
+  } else {
+    lapNumber = 3; // Finished
+  }
   
   // Update current lap
   if (lapNumber > currentLap && !finished) {
     currentLap = lapNumber;
     
-    if (currentLap > totalLaps) {
+    if (lapNumber >= 3 || lapDistance >= totalRaceLength) {
       // Completed final lap (lap 2), finish race
       finished = true;
       syncPosition(absolutePosition, speed, nitroActive || spacebarNitroActive, true, playerX);

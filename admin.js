@@ -17,10 +17,7 @@ let currentUser = null;
 let roomId = null;
 let roomData = null;
 let roomListener = null;
-let minimapCanvas = null;
-let minimapCtx = null;
-// Track length will be calculated from actual game data
-let TRACK_LENGTH = 20000; // Default, will be updated from room data
+let leaderUid = null; // UID of current leader
 
 // Initialize auth
 onAuthStateChanged(async (user) => {
@@ -101,7 +98,7 @@ document.getElementById('startQuiz').addEventListener('click', async () => {
 function loadRoom(roomIdParam) {
   // Cleanup previous listener
   if (roomListener && roomId) {
-    const roomRef = ref(db, `rooms/${roomId}`);
+    const roomRef = ref(`rooms/${roomId}`);
     off(roomRef);
   }
 
@@ -109,18 +106,12 @@ function loadRoom(roomIdParam) {
   document.getElementById('currentRoomId').textContent = roomId;
   document.getElementById('roomInfo').style.display = 'block';
 
-  // Initialize minimap
-  minimapCanvas = document.getElementById('minimap');
-  minimapCtx = minimapCanvas.getContext('2d');
-  minimapCanvas.width = minimapCanvas.offsetWidth;
-  minimapCanvas.height = minimapCanvas.offsetHeight;
-
   // Listen to room updates
   const roomRef = ref(`rooms/${roomId}`);
   roomListener = onValue(roomRef, (snapshot) => {
     roomData = snapshot.val();
     if (roomData) {
-      updateMinimap();
+      updateLeaderView();
       updateRankings();
       checkWinner();
     }
@@ -128,87 +119,50 @@ function loadRoom(roomIdParam) {
 }
 
 /**
- * Update minimap with player positions
+ * Update leader view (iframe showing leader's screen)
  */
-function updateMinimap() {
-  if (!minimapCtx || !roomData || !roomData.players) return;
+function updateLeaderView() {
+  if (!roomData || !roomData.players) return;
 
-  const width = minimapCanvas.width;
-  const height = minimapCanvas.height;
-  const padding = 20;
-
-  // Clear canvas
-  minimapCtx.clearRect(0, 0, width, height);
-
-  // Draw track outline - simplified curved path
-  minimapCtx.strokeStyle = '#333';
-  minimapCtx.lineWidth = 2;
-  minimapCtx.beginPath();
-  
-  // Draw a curved track path (simplified S-curve)
-  const trackWidth = width - 2 * padding;
-  const trackHeight = height - 2 * padding;
-  const centerX = padding + trackWidth * 0.5;
-  
-  minimapCtx.moveTo(centerX, padding);
-  // Create a curved path down the minimap
-  for (let i = 0; i <= 20; i++) {
-    const progress = i / 20;
-    const y = padding + trackHeight * progress;
-    // Add slight curve based on progress (S-curve)
-    const curveOffset = Math.sin(progress * Math.PI * 2) * (trackWidth * 0.2);
-    const x = centerX + curveOffset;
-    if (i === 0) {
-      minimapCtx.moveTo(x, y);
-    } else {
-      minimapCtx.lineTo(x, y);
-    }
-  }
-  minimapCtx.stroke();
-
-  // Calculate track length from max position or use default
+  // Find leader (player with highest position)
   const players = Object.entries(roomData.players);
-  let maxPosition = 0;
+  if (players.length === 0) return;
+
+  let maxPosition = -1;
+  let newLeaderUid = null;
+
   players.forEach(([uid, playerData]) => {
     const pos = playerData.position || 0;
-    if (pos > maxPosition) maxPosition = pos;
+    if (pos > maxPosition) {
+      maxPosition = pos;
+      newLeaderUid = uid;
+    }
   });
-  // Use max position + buffer, or default if no players have moved
-  const currentTrackLength = maxPosition > 1000 ? maxPosition + 1000 : TRACK_LENGTH;
-  
-  // Calculate total lanes
-  const totalLanes = Math.max(3, players.length + 1);
-  
-  // Draw players
-  players.forEach(([uid, playerData]) => {
-    const position = playerData.position || 0;
-    const progress = Math.min(1, position / currentTrackLength);
-    const playerLane = playerData.lane || 1;
-    const playerX = playerData.playerX || 0;
 
-    // Calculate position on minimap following the curved track
-    const trackWidth = width - 2 * padding;
-    const trackHeight = height - 2 * padding;
-    const centerX = padding + trackWidth * 0.5;
-    const y = padding + trackHeight * progress;
-    // Match the curve of the track
-    const curveOffset = Math.sin(progress * Math.PI * 2) * (trackWidth * 0.2);
-    // Add lane offset (spread players horizontally)
-    const laneOffset = (playerX * trackWidth * 0.3);
-    const x = centerX + curveOffset + laneOffset;
-
-    // Draw player dot
-    minimapCtx.fillStyle = playerData.nitro ? '#ff9800' : '#2196F3';
-    minimapCtx.beginPath();
-    minimapCtx.arc(x, y, 6, 0, Math.PI * 2);
-    minimapCtx.fill();
-
-    // Draw player name
-    minimapCtx.fillStyle = 'white';
-    minimapCtx.font = '10px Arial';
-    minimapCtx.textAlign = 'center';
-    minimapCtx.fillText(playerData.name || 'Player', x, y - 10);
-  });
+  // Only update if leader changed
+  if (newLeaderUid && newLeaderUid !== leaderUid) {
+    leaderUid = newLeaderUid;
+    const leaderViewFrame = document.getElementById('leaderViewFrame');
+    
+    // Create iframe to show leader's view
+    // Note: This requires the game to support a spectator/view mode
+    // For now, we'll create an iframe pointing to the leader's game session
+    const leaderUrl = `index.html?roomId=${roomId}&uid=${leaderUid}&viewMode=spectator`;
+    
+    // Remove existing iframe if any
+    leaderViewFrame.innerHTML = '';
+    
+    // Create new iframe
+    const iframe = document.createElement('iframe');
+    iframe.src = leaderUrl;
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframe.style.borderRadius = '5px';
+    iframe.allowFullscreen = true;
+    
+    leaderViewFrame.appendChild(iframe);
+  }
 }
 
 /**
