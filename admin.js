@@ -277,90 +277,94 @@ function updateMinimap() {
   minimapCtx.fillStyle = '#1a5c1a'; // Dark green (grass)
   minimapCtx.fillRect(0, 0, width, height);
 
-  // Simplified approach: use progress-based mapping
-  // Map track length to canvas width, and use curve to create X offset
-  const totalTrackLength = trackLength;
-  const scaleX = (width - 2 * padding) / totalTrackLength;
-  const scaleY = (height - 2 * padding) / 2000; // Assume max height variation ~2000
-  const scale = Math.min(scaleX, scaleY);
+  // Calculate track bounds using same logic as game rendering
+  // In game: x starts at 0, dx accumulates from curve
+  let x = 0;
+  let dx = 0;
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
   
-  // Calculate center Y (average Y)
-  let avgY = 0;
-  trackSegments.forEach(seg => {
-    avgY += seg.p1.y + seg.p2.y;
-  });
-  avgY = avgY / (trackSegments.length * 2);
-  
-  const offsetX = padding;
-  const offsetY = height / 2; // Center vertically
-  
-  // Debug: log track info
-  console.log('Track info:', { 
-    segments: trackSegments.length, 
-    trackLength: totalTrackLength,
-    scale, 
-    offsetX, 
-    offsetY,
-    avgY 
+  // First pass: calculate bounds
+  trackSegments.forEach(segment => {
+    x = x + dx;
+    dx = dx + segment.curve;
+    
+    const segX1 = x;
+    const segX2 = x + dx;
+    const segY1 = segment.p1.y;
+    const segY2 = segment.p2.y;
+    
+    minX = Math.min(minX, segX1, segX2);
+    maxX = Math.max(maxX, segX1, segX2);
+    minY = Math.min(minY, segY1, segY2);
+    maxY = Math.max(maxY, segY1, segY2);
   });
   
-  // Draw track (road) using actual segments
-  minimapCtx.strokeStyle = '#666666'; // Dark gray track (lighter for visibility)
-  minimapCtx.lineWidth = 30;
+  const trackWidth = maxX - minX || 1;
+  const trackHeight = maxY - minY || 1;
+  
+  // Calculate scale to fit track in canvas
+  const scaleX = (width - 2 * padding) / trackWidth;
+  const scaleY = (height - 2 * padding) / trackHeight;
+  const scale = Math.min(scaleX, scaleY) * 0.8; // 80% scale for padding
+  
+  const offsetX = (width - trackWidth * scale) / 2 - minX * scale;
+  const offsetY = (height - trackHeight * scale) / 2 - minY * scale;
+  
+  // Draw track (road) using actual segments - same logic as game
+  minimapCtx.strokeStyle = '#333333'; // Dark gray track
+  minimapCtx.lineWidth = Math.max(20, 30 * scale);
   minimapCtx.beginPath();
   
-  let currentX = 0;
+  x = 0;
+  dx = 0;
   let pathStarted = false;
   
   trackSegments.forEach((segment, index) => {
-    // X position based on Z (distance along track)
-    const x1 = segment.p1.z * scale + offsetX;
-    const y1 = offsetY + (segment.p1.y - avgY) * scale;
+    // Calculate X using same logic as game: x = x + dx, dx = dx + curve
+    const x1 = x * scale + offsetX;
+    const y1 = segment.p1.y * scale + offsetY;
     
-    // Add curve offset to X
-    currentX += segment.curve * 200; // Larger multiplier for visible curves
-    const x2 = segment.p2.z * scale + offsetX;
-    const y2 = offsetY + (segment.p2.y - avgY) * scale;
+    x = x + dx;
+    dx = dx + segment.curve;
     
-    // Apply curve offset
-    const finalX1 = x1 + currentX;
-    const finalX2 = x2 + currentX;
+    const x2 = x * scale + offsetX;
+    const y2 = segment.p2.y * scale + offsetY;
     
     if (!pathStarted) {
-      minimapCtx.moveTo(finalX1, y1);
+      minimapCtx.moveTo(x1, y1);
       pathStarted = true;
     }
     
-    minimapCtx.lineTo(finalX2, y2);
+    minimapCtx.lineTo(x2, y2);
   });
   minimapCtx.stroke();
   
   // Draw track center line (white dashed)
   minimapCtx.strokeStyle = '#ffffff';
-  minimapCtx.lineWidth = 2;
-  minimapCtx.setLineDash([10, 10]);
+  minimapCtx.lineWidth = Math.max(1, 2 * scale);
+  minimapCtx.setLineDash([Math.max(5, 10 * scale), Math.max(5, 10 * scale)]);
   minimapCtx.beginPath();
   
-  currentX = 0;
+  x = 0;
+  dx = 0;
   pathStarted = false;
   
   trackSegments.forEach((segment, index) => {
-    const x1 = segment.p1.z * scale + offsetX;
-    const y1 = offsetY + (segment.p1.y - avgY) * scale;
+    const x1 = x * scale + offsetX;
+    const y1 = segment.p1.y * scale + offsetY;
     
-    currentX += segment.curve * 200;
-    const x2 = segment.p2.z * scale + offsetX;
-    const y2 = offsetY + (segment.p2.y - avgY) * scale;
+    x = x + dx;
+    dx = dx + segment.curve;
     
-    const finalX1 = x1 + currentX;
-    const finalX2 = x2 + currentX;
+    const x2 = x * scale + offsetX;
+    const y2 = segment.p2.y * scale + offsetY;
     
     if (!pathStarted) {
-      minimapCtx.moveTo(finalX1, y1);
+      minimapCtx.moveTo(x1, y1);
       pathStarted = true;
     }
     
-    minimapCtx.lineTo(finalX2, y2);
+    minimapCtx.lineTo(x2, y2);
   });
   minimapCtx.stroke();
   minimapCtx.setLineDash([]); // Reset line dash
@@ -435,27 +439,32 @@ function updateMinimap() {
   // Draw start line (at beginning of track)
   if (trackSegments.length > 0) {
     const startSegment = trackSegments[0];
-    const startX = startSegment.p1.z * scale + offsetX;
-    const startY = offsetY + (startSegment.p1.y - avgY) * scale;
+    const startX = 0 * scale + offsetX; // x starts at 0
+    const startY = startSegment.p1.y * scale + offsetY;
     
     minimapCtx.strokeStyle = '#ffff00'; // Yellow
-    minimapCtx.lineWidth = 3;
+    minimapCtx.lineWidth = Math.max(2, 3 * scale);
     minimapCtx.beginPath();
-    minimapCtx.moveTo(startX - 20, startY);
-    minimapCtx.lineTo(startX + 20, startY);
+    minimapCtx.moveTo(startX - Math.max(10, 20 * scale), startY);
+    minimapCtx.lineTo(startX + Math.max(10, 20 * scale), startY);
     minimapCtx.stroke();
     
     // Draw finish line (at end of track)
     const finishSegment = trackSegments[trackSegments.length - 1];
-    let finishCurveOffset = 0;
-    trackSegments.forEach(seg => finishCurveOffset += seg.curve * 200);
-    const finishX = finishSegment.p2.z * scale + offsetX + finishCurveOffset;
-    const finishY = offsetY + (finishSegment.p2.y - avgY) * scale;
+    // Calculate final X using accumulated dx
+    let finishX = 0;
+    let finishDx = 0;
+    trackSegments.forEach(seg => {
+      finishX = finishX + finishDx;
+      finishDx = finishDx + seg.curve;
+    });
+    finishX = finishX * scale + offsetX;
+    const finishY = finishSegment.p2.y * scale + offsetY;
     
     minimapCtx.strokeStyle = '#ff0000'; // Red
     minimapCtx.beginPath();
-    minimapCtx.moveTo(finishX - 20, finishY);
-    minimapCtx.lineTo(finishX + 20, finishY);
+    minimapCtx.moveTo(finishX - Math.max(10, 20 * scale), finishY);
+    minimapCtx.lineTo(finishX + Math.max(10, 20 * scale), finishY);
     minimapCtx.stroke();
   }
 }
