@@ -1,8 +1,8 @@
 //=========================================================================
-// Admin Dashboard
+// Admin Dashboard - Fixed Minimap
 //=========================================================================
 
-import { getAuth, getDatabase, ref, set, update, onValue, get, signInAnonymously, onAuthStateChanged, initFirebase } from './firebase.js';
+import { getAuth, getDatabase, ref, set, update, onValue, get, off, signInAnonymously, onAuthStateChanged, initFirebase } from './firebase.js';
 import { createQuiz, endQuiz } from './quiz.js';
 
 // Initialize Firebase
@@ -146,16 +146,22 @@ function buildTrack() {
   addDownhillToEnd();
   
   trackLength = trackSegments.length * SEGMENT_LENGTH;
+  
+  console.log(`Track built: ${trackSegments.length} segments, ${trackLength}m total length`);
 }
 
 // Initialize auth
 onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
+    console.log('User authenticated:', user.uid);
   } else {
     await signInAnonymously();
   }
 });
+
+// Build track on page load
+buildTrack();
 
 // Auto-load room from URL if present
 const urlParams = new URLSearchParams(window.location.search);
@@ -239,10 +245,14 @@ function loadRoom(roomIdParam) {
   minimapCanvas = document.getElementById('minimap');
   if (minimapCanvas) {
     minimapCtx = minimapCanvas.getContext('2d');
-    minimapCanvas.width = minimapCanvas.offsetWidth;
-    minimapCanvas.height = minimapCanvas.offsetHeight;
+    // Set proper canvas size
+    const rect = minimapCanvas.getBoundingClientRect();
+    minimapCanvas.width = rect.width;
+    minimapCanvas.height = rect.height;
     
-    // Build track geometry once
+    console.log('Minimap initialized:', minimapCanvas.width, 'x', minimapCanvas.height);
+    
+    // Build track if not already built
     if (trackSegments.length === 0) {
       buildTrack();
     }
@@ -258,17 +268,22 @@ function loadRoom(roomIdParam) {
       checkWinner();
     }
   });
+  
+  console.log('Listening to room:', roomId);
 }
 
 /**
  * Update F1-style minimap with player positions (using actual track geometry)
  */
 function updateMinimap() {
-  if (!minimapCtx || !roomData || !roomData.players || trackSegments.length === 0) return;
+  if (!minimapCtx || !roomData || trackSegments.length === 0) {
+    console.log('Minimap update skipped - missing data');
+    return;
+  }
 
   const width = minimapCanvas.width;
   const height = minimapCanvas.height;
-  const padding = 30;
+  const padding = 40;
 
   // Clear canvas
   minimapCtx.clearRect(0, 0, width, height);
@@ -278,148 +293,137 @@ function updateMinimap() {
   minimapCtx.fillRect(0, 0, width, height);
 
   // Calculate track bounds using same logic as game rendering
-  // In game: x starts at 0, dx accumulates from curve
   let x = 0;
   let dx = 0;
-  let minX = 0, maxX = 0, minY = 0, maxY = 0;
+  let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
   
   // First pass: calculate bounds
   trackSegments.forEach(segment => {
-    x = x + dx;
     dx = dx + segment.curve;
+    x = x + dx;
     
-    const segX1 = x;
-    const segX2 = x + dx;
-    const segY1 = segment.p1.y;
-    const segY2 = segment.p2.y;
-    
-    minX = Math.min(minX, segX1, segX2);
-    maxX = Math.max(maxX, segX1, segX2);
-    minY = Math.min(minY, segY1, segY2);
-    maxY = Math.max(maxY, segY1, segY2);
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minZ = Math.min(minZ, segment.p1.z, segment.p2.z);
+    maxZ = Math.max(maxZ, segment.p1.z, segment.p2.z);
   });
   
   const trackWidth = maxX - minX || 1;
-  const trackHeight = maxY - minY || 1;
+  const trackDepth = maxZ - minZ || 1;
   
   // Calculate scale to fit track in canvas
   const scaleX = (width - 2 * padding) / trackWidth;
-  const scaleY = (height - 2 * padding) / trackHeight;
-  const scale = Math.min(scaleX, scaleY) * 0.8; // 80% scale for padding
+  const scaleZ = (height - 2 * padding) / trackDepth;
+  const scale = Math.min(scaleX, scaleZ);
   
-  const offsetX = (width - trackWidth * scale) / 2 - minX * scale;
-  const offsetY = (height - trackHeight * scale) / 2 - minY * scale;
+  const offsetX = padding - minX * scale;
+  const offsetZ = padding - minZ * scale;
   
-  // Draw track path (F1 style - simple clean line)
-  minimapCtx.strokeStyle = '#ffffff'; // White track line
-  minimapCtx.lineWidth = 4;
+  // Draw track outline (F1 style - white line)
+  minimapCtx.strokeStyle = '#ffffff';
+  minimapCtx.lineWidth = 3;
   minimapCtx.lineCap = 'round';
   minimapCtx.lineJoin = 'round';
   minimapCtx.beginPath();
   
   x = 0;
   dx = 0;
-  let pathStarted = false;
+  let firstPoint = true;
   
-  // Draw every Nth segment for smoother line (skip some segments for performance)
-  const segmentSkip = Math.max(1, Math.floor(trackSegments.length / 500));
-  
+  // Draw track path
   trackSegments.forEach((segment, index) => {
-    if (index % segmentSkip !== 0 && index !== trackSegments.length - 1) return;
-    
-    const x1 = x * scale + offsetX;
-    const y1 = segment.p1.y * scale + offsetY;
-    
-    x = x + dx;
     dx = dx + segment.curve;
+    x = x + dx;
     
-    const x2 = x * scale + offsetX;
-    const y2 = segment.p2.y * scale + offsetY;
+    const canvasX = x * scale + offsetX;
+    const canvasY = segment.p2.z * scale + offsetZ;
     
-    if (!pathStarted) {
-      minimapCtx.moveTo(x1, y1);
-      pathStarted = true;
+    if (firstPoint) {
+      minimapCtx.moveTo(canvasX, canvasY);
+      firstPoint = false;
+    } else {
+      minimapCtx.lineTo(canvasX, canvasY);
     }
-    
-    minimapCtx.lineTo(x2, y2);
   });
   minimapCtx.stroke();
   
-  // Draw players (cars) on track
-  const players = Object.entries(roomData.players);
-  players.forEach(([uid, playerData]) => {
-    const position = playerData.position || 0;
-    const playerX = playerData.playerX || 0;
-    const playerSpeed = playerData.speed || 0;
-    const playerName = playerData.name || 'Player';
-    const isNitro = playerData.nitro || false;
-
-    // Find segment and position on track
-    const segmentIndex = Math.floor(position / SEGMENT_LENGTH) % trackSegments.length;
-    const segment = trackSegments[segmentIndex];
-    const percent = (position % SEGMENT_LENGTH) / SEGMENT_LENGTH;
-    
-    // Calculate X position using same logic as game: accumulate dx from curve
-    let carX = 0;
-    let carDx = 0;
-    
-    // Accumulate up to current segment
-    for (let i = 0; i < segmentIndex; i++) {
-      carX = carX + carDx;
-      carDx = carDx + trackSegments[i].curve;
-    }
-    
-    // Interpolate within current segment
-    const segmentCurve = segment.curve;
-    const interpolatedDx = carDx + (segmentCurve * percent);
-    carX = carX + interpolatedDx * percent;
-    
-    // Calculate Y position (interpolate between segment points)
-    const carY = segment.p1.y + (segment.p2.y - segment.p1.y) * percent;
-    
-    // Convert to minimap coordinates
-    const x = carX * scale + offsetX + (playerX * 20); // Add lane offset
-    const y = carY * scale + offsetY;
-
-    // Draw car (small circle/dot - F1 style)
-    minimapCtx.fillStyle = isNitro ? '#ff9800' : '#2196F3';
-    minimapCtx.strokeStyle = '#ffffff';
-    minimapCtx.lineWidth = 2;
-    
-    // Draw car as a circle
-    minimapCtx.beginPath();
-    minimapCtx.arc(x, y, 6, 0, Math.PI * 2);
-    minimapCtx.fill();
-    minimapCtx.stroke();
-    
-    // Draw player name next to car (simple, no background)
-    minimapCtx.fillStyle = '#ffffff';
-    minimapCtx.font = 'bold 12px Arial';
-    minimapCtx.textAlign = 'left';
-    minimapCtx.textBaseline = 'middle';
-    minimapCtx.fillText(playerName, x + 10, y);
-  });
+  // Draw start/finish line (yellow line)
+  const startSegment = trackSegments[0];
+  const startCanvasX = 0 * scale + offsetX;
+  const startCanvasY = startSegment.p1.z * scale + offsetZ;
   
-  // Draw start/finish line (checkered pattern - F1 style)
-  if (trackSegments.length > 0) {
-    const startSegment = trackSegments[0];
-    const startX = 0 * scale + offsetX;
-    const startY = startSegment.p1.y * scale + offsetY;
-    
-    // Draw checkered flag pattern
-    minimapCtx.strokeStyle = '#ffff00';
-    minimapCtx.lineWidth = 3;
-    minimapCtx.beginPath();
-    minimapCtx.moveTo(startX - 15, startY);
-    minimapCtx.lineTo(startX + 15, startY);
-    minimapCtx.stroke();
-    
-    // Draw small checkered squares
-    minimapCtx.fillStyle = '#000000';
-    minimapCtx.fillRect(startX - 12, startY - 3, 6, 6);
-    minimapCtx.fillRect(startX - 0, startY - 3, 6, 6);
-    minimapCtx.fillRect(startX + 6, startY - 3, 6, 6);
+  minimapCtx.strokeStyle = '#ffff00';
+  minimapCtx.lineWidth = 4;
+  minimapCtx.beginPath();
+  minimapCtx.moveTo(startCanvasX - 20, startCanvasY);
+  minimapCtx.lineTo(startCanvasX + 20, startCanvasY);
+  minimapCtx.stroke();
+  
+  // Draw checkered pattern
+  for (let i = 0; i < 3; i++) {
+    const rectX = startCanvasX - 15 + i * 10;
+    const rectY = startCanvasY - 2;
+    minimapCtx.fillStyle = i % 2 === 0 ? '#000000' : '#ffffff';
+    minimapCtx.fillRect(rectX, rectY, 10, 4);
   }
+  
+  // Draw players (cars) on track
+  if (roomData.players) {
+    const players = Object.entries(roomData.players);
+    
+    players.forEach(([uid, playerData]) => {
+      const position = playerData.position || 0;
+      const playerX = playerData.playerX || 0;
+      const playerName = playerData.name || 'Player';
+      const isNitro = playerData.nitro || false;
+
+      // Find segment and position on track
+      const segmentIndex = Math.floor(position / SEGMENT_LENGTH) % trackSegments.length;
+      const segment = trackSegments[segmentIndex];
+      const percent = (position % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+      
+      // Calculate X position using accumulated curve
+      let carX = 0;
+      let carDx = 0;
+      
+      // Accumulate up to current segment
+      for (let i = 0; i < segmentIndex; i++) {
+        carDx = carDx + trackSegments[i].curve;
+        carX = carX + carDx;
+      }
+      
+      // Interpolate within current segment
+      const segmentCurve = segment.curve;
+      const interpolatedDx = carDx + (segmentCurve * percent);
+      carX = carX + interpolatedDx * percent;
+      
+      // Calculate Z position (interpolate between segment points)
+      const carZ = segment.p1.z + (segment.p2.z - segment.p1.z) * percent;
+      
+      // Convert to minimap coordinates
+      const canvasX = carX * scale + offsetX + (playerX * 15); // Add lane offset
+      const canvasY = carZ * scale + offsetZ;
+
+      // Draw car (F1 style dot)
+      minimapCtx.fillStyle = isNitro ? '#ff9800' : '#2196F3';
+      minimapCtx.strokeStyle = '#ffffff';
+      minimapCtx.lineWidth = 2;
+      
+      minimapCtx.beginPath();
+      minimapCtx.arc(canvasX, canvasY, 7, 0, Math.PI * 2);
+      minimapCtx.fill();
+      minimapCtx.stroke();
+      
+      // Draw player name
+      minimapCtx.fillStyle = '#ffffff';
+      minimapCtx.font = 'bold 11px Arial';
+      minimapCtx.textAlign = 'left';
+      minimapCtx.textBaseline = 'middle';
+      minimapCtx.fillText(playerName, canvasX + 12, canvasY);
+    });
+  }
+  
+  console.log('Minimap updated with', roomData.players ? Object.keys(roomData.players).length : 0, 'players');
 }
 
 /**
@@ -487,3 +491,13 @@ function showWinner(winnerName) {
   document.getElementById('winnerName').textContent = `Winner: ${winnerName}`;
   document.getElementById('winnerModal').classList.add('active');
 }
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  if (minimapCanvas) {
+    const rect = minimapCanvas.getBoundingClientRect();
+    minimapCanvas.width = rect.width;
+    minimapCanvas.height = rect.height;
+    updateMinimap();
+  }
+});
