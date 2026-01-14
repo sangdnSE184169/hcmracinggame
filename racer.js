@@ -246,8 +246,13 @@ function update(dt) {
     lastSyncTime = now;
   }
 
-  // Update remote players
+  // Update remote players - get fresh data every frame
   remotePlayers = getRemoteCars();
+  
+  // Debug: log remote players count
+  if (remotePlayers.length > 0 && Math.random() < 0.01) { // Log 1% of frames to avoid spam
+    console.log('Remote players:', remotePlayers.length, remotePlayers.map(p => p.name + ' @ ' + p.position));
+  }
 }
 
 //-------------------------------------------------------------------------

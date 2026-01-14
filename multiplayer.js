@@ -38,6 +38,8 @@ export function initMultiplayer() {
     if (roomData) {
       if (roomData.players) {
         updateRemoteCars();
+        // Debug: log when players update
+        console.log('Room updated - players:', Object.keys(roomData.players).length);
       }
       // Always call callback when room data changes (including status changes)
       if (onRoomUpdateCallback) {

@@ -199,11 +199,11 @@
           return;
         }
 
-        // Add player to room
+        // Add player to room - randomize start position slightly
         const playerRef = ref(`rooms/${roomId}/players/${currentUser.uid}`);
         await set(playerRef, {
           name: playerName,
-          position: 0,
+          position: Math.random() * 10, // Small random offset to avoid exact overlap
           speed: 0,
           nitro: false,
           finished: false
