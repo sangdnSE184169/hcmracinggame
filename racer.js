@@ -237,13 +237,15 @@ function update(dt) {
   }
 
   // Collision with remote players (EXACT same logic as AI cars)
+  // IMPORTANT: playerX and remoteX must be in same coordinate system (offset -1 to 1)
   if (remotePlayers && remotePlayers.length > 0) {
     var absolutePosition = position + playerZ;
     for (var r = 0; r < remotePlayers.length; r++) {
       var remotePlayer = remotePlayers[r];
       var remotePosition = remotePlayer.position || 0;
       var remoteSpeed = remotePlayer.speed || 0;
-      var remoteX = remotePlayer.playerX || 0;
+      // remoteX should already be offset (-1 to 1) from Firebase sync
+      var remoteOffset = remotePlayer.playerX || 0;
       var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
       
       // Skip collision at spawn (both players at start line)
@@ -256,9 +258,9 @@ function update(dt) {
         continue;
       }
       
-      // EXACT same logic as AI cars
+      // EXACT same logic as AI cars - use offset for both
       if (speed > remoteSpeed) {
-        if (Util.overlap(playerX, playerW, remoteX, remoteW, 0.8)) {
+        if (Util.overlap(playerX, playerW, remoteOffset, remoteW, 0.8)) {
           speed    = remoteSpeed * (remoteSpeed/speed);
           position = Util.increase(remotePosition, -playerZ, trackLength);
           break;
@@ -502,8 +504,10 @@ function render() {
           var baseX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, remotePercent);
           var spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, remotePercent);
           
-          // Calculate X position with lane offset
-          var spriteX = baseX + (spriteScale * remoteX * roadWidth * width/2);
+          // remoteX should be offset (-1 to 1), same as playerX
+          var remoteOffset = remotePlayer.playerX || 0;
+          // Calculate X position with lane offset (same as AI cars: car.offset * roadWidth * width/2)
+          var spriteX = baseX + (spriteScale * remoteOffset * roadWidth * width/2);
           
           // Use a different car sprite for remote players
           var remoteCarSprite = SPRITES.CAR01;
