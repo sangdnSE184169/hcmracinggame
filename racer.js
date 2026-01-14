@@ -494,7 +494,8 @@ function render() {
     if (remotePlayers && remotePlayers.length > 0) {
       remotePlayers.forEach((remotePlayer) => {
         var remotePosition = remotePlayer.position || 0;
-        var remoteX = remotePlayer.playerX || 0;
+        // remoteOffset should be offset (-1 to 1), same as playerX and car.offset
+        var remoteOffset = remotePlayer.playerX || 0;
         var remoteSegment = findSegment(remotePosition);
         var remotePercent = Util.percentRemaining(remotePosition, segmentLength);
         
