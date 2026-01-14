@@ -189,7 +189,7 @@
           });
         }
 
-        // Check if room exists
+        // Check if room exists and get room data
         const roomRef = ref(`rooms/${roomId}`);
         const roomSnapshot = await get(roomRef);
         
@@ -199,9 +199,7 @@
           return;
         }
 
-        // Get room data to calculate lane
-        const roomRef = ref(`rooms/${roomId}`);
-        const roomSnapshot = await get(roomRef);
+        // Get room data to calculate lane (reuse roomSnapshot)
         const roomData = roomSnapshot.val() || {};
         const players = roomData.players || {};
         const playerCount = Object.keys(players).length;
