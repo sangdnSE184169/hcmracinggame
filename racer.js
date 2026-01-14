@@ -121,9 +121,15 @@ onRoomUpdate((roomData) => {
     // Update lanes based on player count
     updateLanes();
     
-    // Update nitro status
+    // Get current player data and set initial lane/position
     const currentPlayer = roomData.players && roomData.players[uid];
     if (currentPlayer) {
+      if (currentPlayer.lane && playerLane === 0) {
+        playerLane = currentPlayer.lane;
+        playerLaneX = currentPlayer.playerX || 0;
+        playerX = playerLaneX; // Set initial X position
+      }
+      
       if (currentPlayer.nitro && !nitroActive) {
         nitroActive = true;
         nitroEndTime = Date.now() + 3000; // 3 seconds
@@ -257,7 +263,7 @@ function update(dt) {
           }
           
           // Sync collision to Firebase
-          syncPosition(absolutePosition, speed, nitroActive, finished);
+          syncPosition(absolutePosition, speed, nitroActive, finished, playerX);
         }
       }
     });
@@ -302,11 +308,11 @@ function update(dt) {
   updateHud('speed',            5 * Math.round(speed/500));
   updateHud('current_lap_time', formatTime(currentLapTime));
 
-  // Sync position to Firebase (throttled)
+  // Sync position to Firebase (throttled) - include playerX for collision
   var now = Date.now();
   if (now - lastSyncTime >= syncInterval) {
     var absolutePos = position + playerZ;
-    syncPosition(absolutePos, speed, nitroActive, finished);
+    syncPosition(absolutePos, speed, nitroActive, finished, playerX);
     lastSyncTime = now;
   }
 
@@ -488,14 +494,18 @@ function render() {
     if (remotePlayers && remotePlayers.length > 0) {
       remotePlayers.forEach((remotePlayer) => {
         var remotePosition = remotePlayer.position || 0;
+        var remoteX = remotePlayer.playerX || 0;
         var remoteSegment = findSegment(remotePosition);
         var remotePercent = Util.percentRemaining(remotePosition, segmentLength);
         
         // If remote player is on this segment, render them
         if (remoteSegment.index === segment.index && segment.p1.screen && segment.p2.screen) {
           var spriteScale = Util.interpolate(segment.p1.screen.scale, segment.p2.screen.scale, remotePercent);
-          var spriteX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, remotePercent);
+          var baseX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, remotePercent);
           var spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, remotePercent);
+          
+          // Calculate X position with lane offset
+          var spriteX = baseX + (spriteScale * remoteX * roadWidth * width/2);
           
           // Use a different car sprite for remote players
           var remoteCarSprite = SPRITES.CAR01;

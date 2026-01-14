@@ -77,7 +77,7 @@ function updateRemoteCars() {
 /**
  * Sync local player position and speed to Firebase
  */
-export function syncPosition(position, speed, nitro = false, finished = false) {
+export function syncPosition(position, speed, nitro = false, finished = false, playerX = 0) {
   if (!roomId || !uid) return;
 
   const playerRef = ref(`rooms/${roomId}/players/${uid}`);
@@ -85,7 +85,8 @@ export function syncPosition(position, speed, nitro = false, finished = false) {
     position: Math.round(position),
     speed: Math.round(speed),
     nitro: nitro,
-    finished: finished
+    finished: finished,
+    playerX: playerX
   });
 }
 
