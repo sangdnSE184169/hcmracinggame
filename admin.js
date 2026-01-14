@@ -513,7 +513,7 @@ function checkWinner() {
     showWinner(winner.name || 'Player');
     
     // Update room status
-    const roomRef = ref(db, `rooms/${roomId}`);
+    const roomRef = ref(`rooms/${roomId}`);
     update(roomRef, { status: 'finished' });
   }
 }
