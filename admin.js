@@ -310,17 +310,23 @@ function updateMinimap() {
   const offsetX = (width - trackWidth * scale) / 2 - minX * scale;
   const offsetY = (height - trackHeight * scale) / 2 - minY * scale;
   
-  // Draw track (road) using actual segments - same logic as game
-  minimapCtx.strokeStyle = '#333333'; // Dark gray track
-  minimapCtx.lineWidth = Math.max(20, 30 * scale);
+  // Draw track path (F1 style - simple clean line)
+  minimapCtx.strokeStyle = '#ffffff'; // White track line
+  minimapCtx.lineWidth = 4;
+  minimapCtx.lineCap = 'round';
+  minimapCtx.lineJoin = 'round';
   minimapCtx.beginPath();
   
   x = 0;
   dx = 0;
   let pathStarted = false;
   
+  // Draw every Nth segment for smoother line (skip some segments for performance)
+  const segmentSkip = Math.max(1, Math.floor(trackSegments.length / 500));
+  
   trackSegments.forEach((segment, index) => {
-    // Calculate X using same logic as game: x = x + dx, dx = dx + curve
+    if (index % segmentSkip !== 0 && index !== trackSegments.length - 1) return;
+    
     const x1 = x * scale + offsetX;
     const y1 = segment.p1.y * scale + offsetY;
     
@@ -338,36 +344,6 @@ function updateMinimap() {
     minimapCtx.lineTo(x2, y2);
   });
   minimapCtx.stroke();
-  
-  // Draw track center line (white dashed)
-  minimapCtx.strokeStyle = '#ffffff';
-  minimapCtx.lineWidth = Math.max(1, 2 * scale);
-  minimapCtx.setLineDash([Math.max(5, 10 * scale), Math.max(5, 10 * scale)]);
-  minimapCtx.beginPath();
-  
-  x = 0;
-  dx = 0;
-  pathStarted = false;
-  
-  trackSegments.forEach((segment, index) => {
-    const x1 = x * scale + offsetX;
-    const y1 = segment.p1.y * scale + offsetY;
-    
-    x = x + dx;
-    dx = dx + segment.curve;
-    
-    const x2 = x * scale + offsetX;
-    const y2 = segment.p2.y * scale + offsetY;
-    
-    if (!pathStarted) {
-      minimapCtx.moveTo(x1, y1);
-      pathStarted = true;
-    }
-    
-    minimapCtx.lineTo(x2, y2);
-  });
-  minimapCtx.stroke();
-  minimapCtx.setLineDash([]); // Reset line dash
   
   // Draw players (cars) on track
   const players = Object.entries(roomData.players);
@@ -405,69 +381,44 @@ function updateMinimap() {
     const x = carX * scale + offsetX + (playerX * 20); // Add lane offset
     const y = carY * scale + offsetY;
 
-    // Draw car (small rectangle)
+    // Draw car (small circle/dot - F1 style)
     minimapCtx.fillStyle = isNitro ? '#ff9800' : '#2196F3';
     minimapCtx.strokeStyle = '#ffffff';
     minimapCtx.lineWidth = 2;
     
-    const carSize = 8 * scale;
-    minimapCtx.fillRect(x - carSize, y - carSize/2, carSize * 2, carSize);
-    minimapCtx.strokeRect(x - carSize, y - carSize/2, carSize * 2, carSize);
+    // Draw car as a circle
+    minimapCtx.beginPath();
+    minimapCtx.arc(x, y, 6, 0, Math.PI * 2);
+    minimapCtx.fill();
+    minimapCtx.stroke();
     
-    // Draw player name above car
+    // Draw player name next to car (simple, no background)
     minimapCtx.fillStyle = '#ffffff';
-    minimapCtx.font = `bold ${Math.max(10, 11 * scale)}px Arial`;
-    minimapCtx.textAlign = 'center';
-    minimapCtx.textBaseline = 'bottom';
-    
-    const textMetrics = minimapCtx.measureText(playerName);
-    const textWidth = textMetrics.width;
-    minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    minimapCtx.fillRect(x - textWidth/2 - 3, y - carSize - 15, textWidth + 6, 14);
-    
-    minimapCtx.fillStyle = '#ffffff';
-    minimapCtx.fillText(playerName, x, y - carSize - 2);
-    
-    // Draw speed indicator below car
-    const speedText = Math.round(playerSpeed / 100) + ' km/h';
-    minimapCtx.font = `${Math.max(8, 9 * scale)}px Arial`;
-    const speedMetrics = minimapCtx.measureText(speedText);
-    minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    minimapCtx.fillRect(x - speedMetrics.width/2 - 2, y + carSize + 2, speedMetrics.width + 4, 12);
-    minimapCtx.fillStyle = '#ffffff';
-    minimapCtx.fillText(speedText, x, y + carSize + 12);
+    minimapCtx.font = 'bold 12px Arial';
+    minimapCtx.textAlign = 'left';
+    minimapCtx.textBaseline = 'middle';
+    minimapCtx.fillText(playerName, x + 10, y);
   });
   
-  // Draw start line (at beginning of track)
+  // Draw start/finish line (checkered pattern - F1 style)
   if (trackSegments.length > 0) {
     const startSegment = trackSegments[0];
-    const startX = 0 * scale + offsetX; // x starts at 0
+    const startX = 0 * scale + offsetX;
     const startY = startSegment.p1.y * scale + offsetY;
     
-    minimapCtx.strokeStyle = '#ffff00'; // Yellow
-    minimapCtx.lineWidth = Math.max(2, 3 * scale);
+    // Draw checkered flag pattern
+    minimapCtx.strokeStyle = '#ffff00';
+    minimapCtx.lineWidth = 3;
     minimapCtx.beginPath();
-    minimapCtx.moveTo(startX - Math.max(10, 20 * scale), startY);
-    minimapCtx.lineTo(startX + Math.max(10, 20 * scale), startY);
+    minimapCtx.moveTo(startX - 15, startY);
+    minimapCtx.lineTo(startX + 15, startY);
     minimapCtx.stroke();
     
-    // Draw finish line (at end of track)
-    const finishSegment = trackSegments[trackSegments.length - 1];
-    // Calculate final X using accumulated dx
-    let finishX = 0;
-    let finishDx = 0;
-    trackSegments.forEach(seg => {
-      finishX = finishX + finishDx;
-      finishDx = finishDx + seg.curve;
-    });
-    finishX = finishX * scale + offsetX;
-    const finishY = finishSegment.p2.y * scale + offsetY;
-    
-    minimapCtx.strokeStyle = '#ff0000'; // Red
-    minimapCtx.beginPath();
-    minimapCtx.moveTo(finishX - Math.max(10, 20 * scale), finishY);
-    minimapCtx.lineTo(finishX + Math.max(10, 20 * scale), finishY);
-    minimapCtx.stroke();
+    // Draw small checkered squares
+    minimapCtx.fillStyle = '#000000';
+    minimapCtx.fillRect(startX - 12, startY - 3, 6, 6);
+    minimapCtx.fillRect(startX - 0, startY - 3, 6, 6);
+    minimapCtx.fillRect(startX + 6, startY - 3, 6, 6);
   }
 }
 
