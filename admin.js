@@ -278,63 +278,84 @@ function updateMinimap() {
   minimapCtx.fillRect(0, 0, width, height);
 
   // Calculate track bounds for scaling
+  // Curve accumulates to create X offset (similar to game rendering)
   let minX = 0, maxX = 0, minY = 0, maxY = 0;
   let currentX = 0;
   
   trackSegments.forEach(segment => {
-    currentX += segment.curve * 50; // Accumulate curve to get X position
+    // Accumulate curve (curve values are typically -6 to +6, so multiply by larger factor)
+    currentX += segment.curve * 100; // Larger multiplier for better visualization
     minX = Math.min(minX, currentX);
     maxX = Math.max(maxX, currentX);
     minY = Math.min(minY, segment.p1.y, segment.p2.y);
     maxY = Math.max(maxY, segment.p1.y, segment.p2.y);
   });
   
-  const trackWidth = maxX - minX;
-  const trackHeight = maxY - minY;
-  const scaleX = (width - 2 * padding) / Math.max(trackWidth, 1);
-  const scaleY = (height - 2 * padding) / Math.max(trackHeight, 1);
-  const scale = Math.min(scaleX, scaleY); // Use uniform scaling
+  // Add some padding to bounds
+  const trackWidth = Math.max(maxX - minX, 1000); // Ensure minimum width
+  const trackHeight = Math.max(maxY - minY, 1000); // Ensure minimum height
   
-  const offsetX = (width - (maxX - minX) * scale) / 2 - minX * scale;
-  const offsetY = (height - (maxY - minY) * scale) / 2 - minY * scale;
+  const scaleX = (width - 2 * padding) / trackWidth;
+  const scaleY = (height - 2 * padding) / trackHeight;
+  const scale = Math.min(scaleX, scaleY, 1); // Use uniform scaling, max 1
+  
+  const offsetX = (width - trackWidth * scale) / 2 - minX * scale;
+  const offsetY = (height - trackHeight * scale) / 2 - minY * scale;
+  
+  // Debug: log track bounds
+  console.log('Track bounds:', { minX, maxX, minY, maxY, trackWidth, trackHeight, scale, offsetX, offsetY });
   
   // Draw track (road) using actual segments
-  minimapCtx.strokeStyle = '#333333'; // Dark gray track
-  minimapCtx.lineWidth = 40 * scale;
+  minimapCtx.strokeStyle = '#666666'; // Dark gray track (lighter for visibility)
+  minimapCtx.lineWidth = Math.max(20, 40 * scale);
   minimapCtx.beginPath();
   
   currentX = 0;
+  let pathStarted = false;
+  
   trackSegments.forEach((segment, index) => {
     const x1 = currentX * scale + offsetX;
     const y1 = segment.p1.y * scale + offsetY;
-    currentX += segment.curve * 50; // Accumulate curve
+    
+    if (!pathStarted) {
+      minimapCtx.moveTo(x1, y1);
+      pathStarted = true;
+    }
+    
+    currentX += segment.curve * 100; // Same multiplier as bounds calculation
     const x2 = currentX * scale + offsetX;
     const y2 = segment.p2.y * scale + offsetY;
     
-    if (index === 0) {
-      minimapCtx.moveTo(x1, y1);
-    }
     minimapCtx.lineTo(x2, y2);
   });
   minimapCtx.stroke();
   
+  // Debug: draw a test point to verify coordinates
+  minimapCtx.fillStyle = 'red';
+  minimapCtx.fillRect(offsetX, offsetY, 5, 5);
+  
   // Draw track center line (white dashed)
   minimapCtx.strokeStyle = '#ffffff';
-  minimapCtx.lineWidth = 2 * scale;
-  minimapCtx.setLineDash([10 * scale, 10 * scale]);
+  minimapCtx.lineWidth = Math.max(1, 2 * scale);
+  minimapCtx.setLineDash([Math.max(5, 10 * scale), Math.max(5, 10 * scale)]);
   minimapCtx.beginPath();
   
   currentX = 0;
+  pathStarted = false;
+  
   trackSegments.forEach((segment, index) => {
     const x1 = currentX * scale + offsetX;
     const y1 = segment.p1.y * scale + offsetY;
-    currentX += segment.curve * 50;
+    
+    if (!pathStarted) {
+      minimapCtx.moveTo(x1, y1);
+      pathStarted = true;
+    }
+    
+    currentX += segment.curve * 100; // Same multiplier
     const x2 = currentX * scale + offsetX;
     const y2 = segment.p2.y * scale + offsetY;
     
-    if (index === 0) {
-      minimapCtx.moveTo(x1, y1);
-    }
     minimapCtx.lineTo(x2, y2);
   });
   minimapCtx.stroke();
@@ -357,9 +378,9 @@ function updateMinimap() {
     // Calculate X position (accumulate curve up to this segment)
     let carX = 0;
     for (let i = 0; i < segmentIndex; i++) {
-      carX += trackSegments[i].curve * 50;
+      carX += trackSegments[i].curve * 100; // Same multiplier
     }
-    carX += segment.curve * 50 * percent;
+    carX += segment.curve * 100 * percent;
     
     // Calculate Y position (interpolate between segment points)
     const carY = segment.p1.y + (segment.p2.y - segment.p1.y) * percent;
@@ -411,23 +432,23 @@ function updateMinimap() {
     const startY = startSegment.p1.y * scale + offsetY;
     
     minimapCtx.strokeStyle = '#ffff00'; // Yellow
-    minimapCtx.lineWidth = 3 * scale;
+    minimapCtx.lineWidth = Math.max(2, 3 * scale);
     minimapCtx.beginPath();
-    minimapCtx.moveTo(startX - 20 * scale, startY);
-    minimapCtx.lineTo(startX + 20 * scale, startY);
+    minimapCtx.moveTo(startX - Math.max(10, 20 * scale), startY);
+    minimapCtx.lineTo(startX + Math.max(10, 20 * scale), startY);
     minimapCtx.stroke();
     
     // Draw finish line (at end of track)
     const finishSegment = trackSegments[trackSegments.length - 1];
     let finishX = 0;
-    trackSegments.forEach(seg => finishX += seg.curve * 50);
+    trackSegments.forEach(seg => finishX += seg.curve * 100); // Same multiplier
     finishX = finishX * scale + offsetX;
     const finishY = finishSegment.p2.y * scale + offsetY;
     
     minimapCtx.strokeStyle = '#ff0000'; // Red
     minimapCtx.beginPath();
-    minimapCtx.moveTo(finishX - 20 * scale, finishY);
-    minimapCtx.lineTo(finishX + 20 * scale, finishY);
+    minimapCtx.moveTo(finishX - Math.max(10, 20 * scale), finishY);
+    minimapCtx.lineTo(finishX + Math.max(10, 20 * scale), finishY);
     minimapCtx.stroke();
   }
 }
