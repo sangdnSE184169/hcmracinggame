@@ -238,12 +238,18 @@ function update(dt) {
 
   // Collision with remote players (EXACT same logic as AI cars)
   if (remotePlayers && remotePlayers.length > 0) {
+    var absolutePosition = position + playerZ;
     for (var r = 0; r < remotePlayers.length; r++) {
       var remotePlayer = remotePlayers[r];
       var remotePosition = remotePlayer.position || 0;
       var remoteSpeed = remotePlayer.speed || 0;
       var remoteX = remotePlayer.playerX || 0;
       var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
+      
+      // Skip collision at spawn (both players at start line)
+      if (absolutePosition < 50 && remotePosition < 50) {
+        continue;
+      }
       
       // EXACT same logic as AI cars
       if (speed > remoteSpeed) {
