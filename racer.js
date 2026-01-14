@@ -236,46 +236,21 @@ function update(dt) {
     }
   }
 
-  // Collision with remote players (same logic as AI cars, but with push-away effect)
+  // Collision with remote players (EXACT same logic as AI cars)
   if (remotePlayers && remotePlayers.length > 0) {
-    var absolutePosition = position + playerZ;
     for (var r = 0; r < remotePlayers.length; r++) {
       var remotePlayer = remotePlayers[r];
       var remotePosition = remotePlayer.position || 0;
       var remoteSpeed = remotePlayer.speed || 0;
       var remoteX = remotePlayer.playerX || 0;
+      var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
       
-      // Skip collision check if both players are at start (position < 100)
-      // This prevents collision blocking at spawn
-      if (absolutePosition < 100 && remotePosition < 100) {
-        continue;
-      }
-      
-      var remoteSegment = findSegment(remotePosition);
-      
-      // Only collide if player is faster than remote player (same as AI cars)
-      // But require significant speed difference to avoid getting stuck
-      if (speed > remoteSpeed && (speed - remoteSpeed) > 50) {
-        // Check if on same segment or very close
-        if (remoteSegment.index === playerSegment.index || 
-            Math.abs(remotePosition - absolutePosition) < segmentLength * 2) {
-          var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
-          
-          // Check collision (same overlap logic as AI cars)
-          if (Util.overlap(playerX, playerW, remoteX, remoteW, 0.8)) {
-            // Same speed reduction logic as AI cars
-            speed = remoteSpeed * (remoteSpeed/speed);
-            position = Util.increase(remotePosition, -playerZ, trackLength);
-            
-            // Push players apart horizontally to prevent getting stuck
-            if (playerX < remoteX) {
-              playerX = playerX - 0.2; // Push left
-            } else {
-              playerX = playerX + 0.2; // Push right
-            }
-            
-            break;
-          }
+      // EXACT same logic as AI cars
+      if (speed > remoteSpeed) {
+        if (Util.overlap(playerX, playerW, remoteX, remoteW, 0.8)) {
+          speed    = remoteSpeed * (remoteSpeed/speed);
+          position = Util.increase(remotePosition, -playerZ, trackLength);
+          break;
         }
       }
     }
