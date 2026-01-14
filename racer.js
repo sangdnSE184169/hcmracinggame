@@ -236,7 +236,7 @@ function update(dt) {
     }
   }
 
-  // Collision with remote players (same logic as AI cars)
+  // Collision with remote players (same logic as AI cars, but with push-away effect)
   if (remotePlayers && remotePlayers.length > 0) {
     var absolutePosition = position + playerZ;
     for (var r = 0; r < remotePlayers.length; r++) {
@@ -254,7 +254,8 @@ function update(dt) {
       var remoteSegment = findSegment(remotePosition);
       
       // Only collide if player is faster than remote player (same as AI cars)
-      if (speed > remoteSpeed && speed > 0) {
+      // But require significant speed difference to avoid getting stuck
+      if (speed > remoteSpeed && (speed - remoteSpeed) > 50) {
         // Check if on same segment or very close
         if (remoteSegment.index === playerSegment.index || 
             Math.abs(remotePosition - absolutePosition) < segmentLength * 2) {
@@ -265,6 +266,14 @@ function update(dt) {
             // Same speed reduction logic as AI cars
             speed = remoteSpeed * (remoteSpeed/speed);
             position = Util.increase(remotePosition, -playerZ, trackLength);
+            
+            // Push players apart horizontally to prevent getting stuck
+            if (playerX < remoteX) {
+              playerX = playerX - 0.2; // Push left
+            } else {
+              playerX = playerX + 0.2; // Push right
+            }
+            
             break;
           }
         }
