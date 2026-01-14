@@ -242,13 +242,24 @@ function update(dt) {
     var absolutePosition = position + playerZ;
     for (var r = 0; r < remotePlayers.length; r++) {
       var remotePlayer = remotePlayers[r];
-      var remotePosition = remotePlayer.position || 0;
+      var baseRemotePosition = remotePlayer.position || 0;
+      
+      // Cách 3: Đẩy lệch Z theo UID (giống render) để collision đúng với vị trí hiển thị
+      var uidHash = 0;
+      if (remotePlayer.uid) {
+        for (var i = 0; i < Math.min(remotePlayer.uid.length, 5); i++) {
+          uidHash += remotePlayer.uid.charCodeAt(i);
+        }
+      }
+      var zOffset = (uidHash % 5) * 20; // Lệch Z từ 0-80 theo UID
+      var remotePosition = baseRemotePosition + zOffset;
+      
       var remoteSpeed = remotePlayer.speed || 0;
       // remoteX should already be offset (-1 to 1) from Firebase sync
       var remoteOffset = remotePlayer.playerX || 0;
       var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
       
-      // Skip collision at spawn (both players at start line)
+      // Skip collision at spawn (both players at start line) - nhưng dùng remotePosition đã lệch Z
       if (absolutePosition < 50 && remotePosition < 50) {
         continue;
       }
