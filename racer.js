@@ -48,7 +48,7 @@ var speed          = 0;
 // Base maxSpeed = 100 km/h (speed/500 * 5 = speed/100, so speed = 10000 for display 100)
 var baseMaxSpeed   = 10000; // 100 km/h
 var maxSpeed       = baseMaxSpeed;
-var nitroMaxSpeed  = 15000; // 150 km/h when nitro active
+var nitroMaxSpeed  = 12500; // 125 km/h when nitro active
 var accel          = maxSpeed/5;
 var breaking       = -maxSpeed;
 var decel          = -maxSpeed/5;
@@ -57,16 +57,14 @@ var offRoadLimit   = maxSpeed/4;
 var totalCars      = 200;
 var currentLapTime = 0;
 var lastLapTime    = null;
-var currentLap     = 1; // Track current lap (1 or 2)
-var totalLaps      = 2; // Total laps in race
+var currentLap     = 1; // Track current lap (always 1 now)
+var totalLaps      = 1; // Single lap race
 var totalDistance  = 0; // Track total distance traveled (for lap counting)
 var lastPosition   = 0; // Track last position for distance calculation
 
 // Multiplayer state
 var nitroActive    = false;
 var nitroEndTime   = 0;
-var spacebarNitroActive = false; // Spacebar nitro (150km/h for 3s)
-var spacebarNitroEndTime = 0;
 var lastSyncTime   = 0;
 var syncInterval   = 100; // Sync every 100ms
 var remotePlayers  = [];
@@ -83,7 +81,6 @@ var keyLeft        = false;
 var keyRight       = false;
 var keyFaster      = false;
 var keySlower      = false;
-var keySpace       = false;
 
 var hud = {
   speed:            { value: null, dom: Dom.get('speed_value')            },
@@ -162,9 +159,8 @@ onRoomUpdate((roomData) => {
         waitingOverlay.style.display = 'none';
       }
       
-      // Reset lap tracking when race starts
-      if (currentLap === 1 && totalDistance === 0) {
-        currentLap = 1;
+      // Reset tracking when race starts
+      if (totalDistance === 0) {
         totalDistance = 0;
         lastPosition = position;
         lastQuizTime = Date.now(); // Start quiz timer
@@ -193,14 +189,11 @@ function update(dt) {
     return;
   }
   
-  // Pause game when quiz is active (cars stop, time doesn't count)
+  // Pause game when quiz is active (keep current speed, pause position/time)
   // Only pause if quiz is actually active (not just initialized)
   var quizActive = isQuizActive();
   if (quizActive) {
-    // Stop the car (decelerate to 0)
-    speed = Util.accelerate(speed, decel, dt);
-    speed = Math.max(0, speed);
-    
+    // Keep current speed (don't decelerate)
     // Still render but don't update position/time
     // Don't update position, totalDistance, or lap time
     updateHud('speed', 5 * Math.round(speed/500));
@@ -213,19 +206,6 @@ function update(dt) {
   var speedPercent  = speed/maxSpeed;
   var dx            = dt * 2 * speedPercent;
   var startPosition = position;
-
-  // Check spacebar nitro boost (150km/h for 3s)
-  if (spacebarNitroActive) {
-    if (Date.now() >= spacebarNitroEndTime) {
-      spacebarNitroActive = false;
-    }
-  }
-  
-  // Handle spacebar press
-  if (keySpace && !spacebarNitroActive) {
-    spacebarNitroActive = true;
-    spacebarNitroEndTime = Date.now() + 3000; // 3 seconds
-  }
 
   // Check Firebase nitro boost (from quiz winner)
   if (nitroActive) {
@@ -240,19 +220,10 @@ function update(dt) {
   var currentAccel = accel;
   var currentMaxSpeed = baseMaxSpeed; // Start with base 100km/h
   
-  // Spacebar nitro: 150km/h for 3s
-  if (spacebarNitroActive) {
-    currentMaxSpeed = nitroMaxSpeed; // 150 km/h
-    var nitroIndicator = Dom.get('nitro-indicator');
-    if (nitroIndicator) {
-      nitroIndicator.style.display = 'block';
-      nitroIndicator.textContent = '⚡ NITRO (Space)';
-    }
-  }
-  // Firebase nitro (from quiz): 1.5x base speed
-  else if (nitroActive) {
-    currentAccel = accel * 1.5;
-    currentMaxSpeed = baseMaxSpeed * 1.5; // 150 km/h
+  // Firebase nitro (from quiz winner): 125 km/h
+  if (nitroActive) {
+    currentAccel = accel * 1.25;
+    currentMaxSpeed = nitroMaxSpeed; // 125 km/h
     var nitroIndicator = Dom.get('nitro-indicator');
     if (nitroIndicator) {
       nitroIndicator.style.display = 'block';
@@ -329,33 +300,12 @@ function update(dt) {
   playerX = Util.limit(playerX, -3, 3);
   speed   = Util.limit(speed, 0, currentMaxSpeed);
 
-  // Check finish line (lap system: 2 laps)
-  // Lap 1: full trackLength, Lap 2: half trackLength (trackLength / 2)
+  // Check finish line (single lap)
   var absolutePosition = position + playerZ;
-  var lapDistance = totalDistance;
-  var lap1Length = trackLength;
-  var lap2Length = trackLength / 2; // Lap 2 is half of lap 1
-  var totalRaceLength = lap1Length + lap2Length;
-  
-  // Calculate current lap based on distance
-  var lapNumber;
-  if (lapDistance < lap1Length) {
-    lapNumber = 1;
-  } else if (lapDistance < totalRaceLength) {
-    lapNumber = 2;
-  } else {
-    lapNumber = 3; // Finished
-  }
-  
-  // Update current lap
-  if (lapNumber > currentLap && !finished) {
-    currentLap = lapNumber;
-    
-    if (lapNumber >= 3 || lapDistance >= totalRaceLength) {
-      // Completed final lap (lap 2), finish race
-      finished = true;
-      syncPosition(absolutePosition, speed, nitroActive || spacebarNitroActive, true, playerX);
-    }
+  if (absolutePosition >= trackLength && !finished) {
+    // Completed the race (single lap)
+    finished = true;
+    syncPosition(absolutePosition, speed, nitroActive, true, playerX);
   }
   
   // Auto-trigger quiz every 45 seconds
@@ -396,7 +346,6 @@ function update(dt) {
   }
 
   updateHud('speed',            5 * Math.round(speed/500));
-  updateHud('lap',              currentLap);
   updateHud('current_lap_time', formatTime(currentLapTime));
 
   // Sync position to Firebase (throttled) - include playerX for collision
