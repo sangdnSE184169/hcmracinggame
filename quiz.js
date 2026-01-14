@@ -16,6 +16,62 @@ let uid = null;
 let quizData = null;
 let quizListener = null;
 
+// Hardcoded quiz questions
+const QUIZ_QUESTIONS = [
+  {
+    question: "What is the capital of France?",
+    options: ["London", "Berlin", "Paris", "Madrid"],
+    correctIndex: 2
+  },
+  {
+    question: "Which planet is known as the Red Planet?",
+    options: ["Venus", "Mars", "Jupiter", "Saturn"],
+    correctIndex: 1
+  },
+  {
+    question: "What is 2 + 2?",
+    options: ["3", "4", "5", "6"],
+    correctIndex: 1
+  },
+  {
+    question: "Who wrote 'Romeo and Juliet'?",
+    options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+    correctIndex: 1
+  },
+  {
+    question: "What is the largest ocean on Earth?",
+    options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+    correctIndex: 3
+  },
+  {
+    question: "What is the chemical symbol for gold?",
+    options: ["Go", "Gd", "Au", "Ag"],
+    correctIndex: 2
+  },
+  {
+    question: "How many continents are there?",
+    options: ["5", "6", "7", "8"],
+    correctIndex: 2
+  },
+  {
+    question: "What is the speed of light?",
+    options: ["300,000 km/s", "150,000 km/s", "450,000 km/s", "600,000 km/s"],
+    correctIndex: 0
+  },
+  {
+    question: "Which gas do plants absorb from the atmosphere?",
+    options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"],
+    correctIndex: 2
+  },
+  {
+    question: "What is the smallest prime number?",
+    options: ["0", "1", "2", "3"],
+    correctIndex: 2
+  }
+];
+
+let currentQuestionIndex = 0;
+
 /**
  * Initialize quiz system
  */
@@ -94,7 +150,7 @@ function startCountdown(startTime) {
   const timerEl = document.getElementById('quizTimer');
   if (!timerEl) return;
 
-  const duration = 5000; // 5 seconds
+  const duration = 30000; // 30 seconds
   const updateTimer = () => {
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, duration - elapsed);
@@ -157,17 +213,55 @@ export async function createQuiz(question, options, correctIndex) {
 }
 
 /**
+ * Get next quiz question from hardcoded list
+ */
+export function getNextQuiz() {
+  if (QUIZ_QUESTIONS.length === 0) return null;
+  
+  const quiz = QUIZ_QUESTIONS[currentQuestionIndex % QUIZ_QUESTIONS.length];
+  currentQuestionIndex++;
+  return quiz;
+}
+
+/**
+ * Auto-create quiz (called every 45s)
+ */
+export async function autoCreateQuiz(roomIdParam) {
+  if (!roomIdParam) return;
+  
+  const quiz = getNextQuiz();
+  if (!quiz) return;
+  
+  await createQuiz(quiz.question, quiz.options, quiz.correctIndex);
+  
+  // Auto-end quiz after 30 seconds
+  setTimeout(async () => {
+    await endQuiz(roomIdParam);
+  }, 30000);
+}
+
+/**
  * End quiz and grant nitro to fastest correct answer (admin only)
  */
-export async function endQuiz() {
-  if (!roomId || !quizData) return;
+export async function endQuiz(roomIdParam) {
+  const targetRoomId = roomIdParam || roomId;
+  if (!targetRoomId) return;
+  
+  // Get quiz data if not available
+  if (!quizData) {
+    const quizRef = ref(`rooms/${targetRoomId}/quiz`);
+    const quizSnapshot = await get(quizRef);
+    quizData = quizSnapshot.val();
+  }
+  
+  if (!quizData) return;
 
-  const answersRef = ref(`rooms/${roomId}/answers`);
+  const answersRef = ref(`rooms/${targetRoomId}/answers`);
   const answersSnapshot = await get(answersRef);
   
   if (!answersSnapshot.exists()) {
     // No answers, just end quiz
-    const quizRef = ref(db, `rooms/${roomId}/quiz`);
+    const quizRef = ref(`rooms/${targetRoomId}/quiz`);
     await update(quizRef, { active: false });
     return;
   }
@@ -190,7 +284,7 @@ export async function endQuiz() {
     correctAnswers.sort((a, b) => a.time - b.time);
     const winner = correctAnswers[0];
     
-    const playerRef = ref(`rooms/${roomId}/players/${winner.uid}`);
+    const playerRef = ref(`rooms/${targetRoomId}/players/${winner.uid}`);
     await update(playerRef, { nitro: true });
 
     // Auto-disable nitro after 3 seconds
@@ -200,8 +294,8 @@ export async function endQuiz() {
   }
 
   // Clear answers and end quiz
-  await set(ref(`rooms/${roomId}/answers`), {});
-  const quizRef = ref(`rooms/${roomId}/quiz`);
+  await set(ref(`rooms/${targetRoomId}/answers`), {});
+  const quizRef = ref(`rooms/${targetRoomId}/quiz`);
   await update(quizRef, { active: false });
 }
 

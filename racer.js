@@ -3,7 +3,7 @@
 //=========================================================================
 
 import { initMultiplayer, syncPosition, getRemoteCars, getRoomData, isRaceStarted, isRaceFinished, onRoomUpdate } from './multiplayer.js';
-import { initQuiz } from './quiz.js';
+import { initQuiz, autoCreateQuiz } from './quiz.js';
 import { initFirebase } from './firebase.js';
 
 // Initialize Firebase
@@ -45,7 +45,10 @@ var playerZ        = null;
 var fogDensity     = 5;
 var position       = 0;
 var speed          = 0;
-var maxSpeed       = segmentLength/step;
+// Base maxSpeed = 100 km/h (speed/500 * 5 = speed/100, so speed = 10000 for display 100)
+var baseMaxSpeed   = 10000; // 100 km/h
+var maxSpeed       = baseMaxSpeed;
+var nitroMaxSpeed  = 15000; // 150 km/h when nitro active
 var accel          = maxSpeed/5;
 var breaking       = -maxSpeed;
 var decel          = -maxSpeed/5;
@@ -54,10 +57,16 @@ var offRoadLimit   = maxSpeed/4;
 var totalCars      = 200;
 var currentLapTime = 0;
 var lastLapTime    = null;
+var currentLap     = 1; // Track current lap (1 or 2)
+var totalLaps      = 2; // Total laps in race
+var totalDistance  = 0; // Track total distance traveled (for lap counting)
+var lastPosition   = 0; // Track last position for distance calculation
 
 // Multiplayer state
 var nitroActive    = false;
 var nitroEndTime   = 0;
+var spacebarNitroActive = false; // Spacebar nitro (150km/h for 3s)
+var spacebarNitroEndTime = 0;
 var lastSyncTime   = 0;
 var syncInterval   = 100; // Sync every 100ms
 var remotePlayers  = [];
@@ -66,14 +75,19 @@ var finished       = false;
 // These are used inside the Firebase onRoomUpdate callback.
 var playerLane      = 0;
 var playerLaneX     = 0;
+// Quiz auto-trigger timer
+var lastQuizTime   = 0;
+var quizInterval   = 45000; // 45 seconds
 
 var keyLeft        = false;
 var keyRight       = false;
 var keyFaster      = false;
 var keySlower      = false;
+var keySpace       = false;
 
 var hud = {
   speed:            { value: null, dom: Dom.get('speed_value')            },
+  lap:              { value: null, dom: Dom.get('lap_value')              },
   current_lap_time: { value: null, dom: Dom.get('current_lap_time_value') },
   last_lap_time:    { value: null, dom: Dom.get('last_lap_time_value')    },
   fast_lap_time:    { value: null, dom: Dom.get('fast_lap_time_value')    }
@@ -147,6 +161,14 @@ onRoomUpdate((roomData) => {
       if (waitingOverlay) {
         waitingOverlay.style.display = 'none';
       }
+      
+      // Reset lap tracking when race starts
+      if (currentLap === 1 && totalDistance === 0) {
+        currentLap = 1;
+        totalDistance = 0;
+        lastPosition = position;
+        lastQuizTime = Date.now(); // Start quiz timer
+      }
     }
 
     // Check if race finished
@@ -178,25 +200,71 @@ function update(dt) {
   var dx            = dt * 2 * speedPercent;
   var startPosition = position;
 
-  // Check nitro boost
+  // Check spacebar nitro boost (150km/h for 3s)
+  if (spacebarNitroActive) {
+    if (Date.now() >= spacebarNitroEndTime) {
+      spacebarNitroActive = false;
+    }
+  }
+  
+  // Handle spacebar press
+  if (keySpace && !spacebarNitroActive) {
+    spacebarNitroActive = true;
+    spacebarNitroEndTime = Date.now() + 3000; // 3 seconds
+  }
+
+  // Check Firebase nitro boost (from quiz winner)
   if (nitroActive) {
     if (Date.now() >= nitroEndTime) {
       nitroActive = false;
-      Dom.get('nitro-indicator').style.display = 'none';
+      var nitroIndicator = Dom.get('nitro-indicator');
+      if (nitroIndicator) nitroIndicator.style.display = 'none';
     }
   }
 
   // Apply nitro boost to speed
   var currentAccel = accel;
-  var currentMaxSpeed = maxSpeed;
-  if (nitroActive) {
+  var currentMaxSpeed = baseMaxSpeed; // Start with base 100km/h
+  
+  // Spacebar nitro: 150km/h for 3s
+  if (spacebarNitroActive) {
+    currentMaxSpeed = nitroMaxSpeed; // 150 km/h
+    var nitroIndicator = Dom.get('nitro-indicator');
+    if (nitroIndicator) {
+      nitroIndicator.style.display = 'block';
+      nitroIndicator.textContent = '⚡ NITRO (Space)';
+    }
+  }
+  // Firebase nitro (from quiz): 1.5x base speed
+  else if (nitroActive) {
     currentAccel = accel * 1.5;
-    currentMaxSpeed = maxSpeed * 1.5;
+    currentMaxSpeed = baseMaxSpeed * 1.5; // 150 km/h
+    var nitroIndicator = Dom.get('nitro-indicator');
+    if (nitroIndicator) {
+      nitroIndicator.style.display = 'block';
+      nitroIndicator.textContent = '⚡ NITRO';
+    }
+  } else {
+    var nitroIndicator = Dom.get('nitro-indicator');
+    if (nitroIndicator) nitroIndicator.style.display = 'none';
   }
 
   updateCars(dt, playerSegment, playerW);
 
   position = Util.increase(position, dt * speed, trackLength);
+  
+  // Track total distance for lap counting
+  var positionDelta = position - lastPosition;
+  if (positionDelta < -trackLength / 2) {
+    // Wrapped around, add full track length
+    totalDistance += trackLength + positionDelta;
+  } else if (positionDelta > trackLength / 2) {
+    // Wrapped backwards (shouldn't happen), subtract
+    totalDistance += positionDelta - trackLength;
+  } else {
+    totalDistance += positionDelta;
+  }
+  lastPosition = position;
 
   if (keyLeft)
     playerX = playerX - dx;
@@ -243,11 +311,31 @@ function update(dt) {
   playerX = Util.limit(playerX, -3, 3);
   speed   = Util.limit(speed, 0, currentMaxSpeed);
 
-  // Check finish line
+  // Check finish line (lap system: 2 laps)
   var absolutePosition = position + playerZ;
-  if (absolutePosition >= trackLength && !finished) {
-    finished = true;
-    syncPosition(absolutePosition, speed, nitroActive, true, playerX);
+  var lapDistance = totalDistance;
+  var lapNumber = Math.floor(lapDistance / trackLength) + 1;
+  
+  // Update current lap
+  if (lapNumber > currentLap && !finished) {
+    currentLap = lapNumber;
+    
+    if (currentLap > totalLaps) {
+      // Completed final lap (lap 2), finish race
+      finished = true;
+      syncPosition(absolutePosition, speed, nitroActive || spacebarNitroActive, true, playerX);
+    }
+  }
+  
+  // Auto-trigger quiz every 45 seconds
+  if (isRaceStarted() && !finished) {
+    var now = Date.now();
+    if (now - lastQuizTime >= quizInterval) {
+      lastQuizTime = now;
+      if (roomId) {
+        autoCreateQuiz(roomId);
+      }
+    }
   }
 
   skyOffset  = Util.increase(skyOffset,  skySpeed  * playerSegment.curve * (position-startPosition)/segmentLength, 1);
@@ -277,6 +365,7 @@ function update(dt) {
   }
 
   updateHud('speed',            5 * Math.round(speed/500));
+  updateHud('lap',              currentLap);
   updateHud('current_lap_time', formatTime(currentLapTime));
 
   // Sync position to Firebase (throttled) - include playerX for collision
@@ -821,10 +910,12 @@ Game.run({
     { keys: [KEY.RIGHT, KEY.D], mode: 'down', action: function() { keyRight  = true;  } },
     { keys: [KEY.UP,    KEY.W], mode: 'down', action: function() { keyFaster = true;  } },
     { keys: [KEY.DOWN,  KEY.S], mode: 'down', action: function() { keySlower = true;  } },
+    { keys: [KEY.SPACE], mode: 'down', action: function() { keySpace = true; } },
     { keys: [KEY.LEFT,  KEY.A], mode: 'up',   action: function() { keyLeft   = false; } },
     { keys: [KEY.RIGHT, KEY.D], mode: 'up',   action: function() { keyRight  = false; } },
     { keys: [KEY.UP,    KEY.W], mode: 'up',   action: function() { keyFaster = false; } },
-    { keys: [KEY.DOWN,  KEY.S], mode: 'up',   action: function() { keySlower = false; } }
+    { keys: [KEY.DOWN,  KEY.S], mode: 'up',   action: function() { keySlower = false; } },
+    { keys: [KEY.SPACE], mode: 'up', action: function() { keySpace = false; } }
   ],
   ready: function(images) {
     background = images[0];
