@@ -22,12 +22,10 @@
       <h2>Room: <span id="currentRoomId"></span></h2>
       
       <div class="dashboard-layout">
-        <!-- Leader view (main screen) -->
-        <div class="leader-view-container">
-          <h3>Leader View</h3>
-          <div id="leaderViewFrame" class="leader-view-frame">
-            <p style="text-align: center; padding: 50px; color: #999;">Waiting for race to start...</p>
-          </div>
+        <!-- F1-style Minimap (main screen) -->
+        <div class="minimap-container-f1">
+          <h3>Track Map</h3>
+          <canvas id="minimap" class="minimap-f1"></canvas>
         </div>
 
         <!-- Ranking list (top left overlay) -->
