@@ -62,6 +62,10 @@ var lastSyncTime   = 0;
 var syncInterval   = 100; // Sync every 100ms
 var remotePlayers  = [];
 var finished       = false;
+// Lane/spawn state (offset-based, like car.offset / playerX)
+// These are used inside the Firebase onRoomUpdate callback.
+var playerLane      = 0;
+var playerLaneX     = 0;
 
 var keyLeft        = false;
 var keyRight       = false;
