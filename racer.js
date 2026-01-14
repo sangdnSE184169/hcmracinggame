@@ -419,6 +419,29 @@ function render() {
       // Render player name above own car
       renderPlayerName(width/2, (height/2) - (cameraDepth/playerZ * Util.interpolate(playerSegment.p1.camera.y, playerSegment.p2.camera.y, playerPercent) * height/2) - 30, getCurrentPlayerName(), true);
     }
+
+    // Render remote players DIRECTLY in segment loop
+    if (remotePlayers && remotePlayers.length > 0) {
+      remotePlayers.forEach((remotePlayer) => {
+        var remotePosition = remotePlayer.position || 0;
+        var remoteSegment = findSegment(remotePosition);
+        var remotePercent = Util.percentRemaining(remotePosition, segmentLength);
+        
+        // If remote player is on this segment, render them
+        if (remoteSegment.index === segment.index && segment.p1.screen && segment.p2.screen) {
+          var spriteScale = Util.interpolate(segment.p1.screen.scale, segment.p2.screen.scale, remotePercent);
+          var spriteX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, remotePercent);
+          var spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, remotePercent);
+          
+          // Use a different car sprite for remote players
+          var remoteCarSprite = SPRITES.CAR01;
+          Render.sprite(ctx, width, height, resolution, roadWidth, sprites, remoteCarSprite, spriteScale, spriteX, spriteY, -0.5, -1, segment.clip);
+          
+          // Render player name above car
+          renderPlayerName(spriteX, spriteY - 30, remotePlayer.name, false);
+        }
+      });
+    }
   }
 }
 
