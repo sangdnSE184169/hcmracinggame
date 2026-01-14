@@ -240,50 +240,6 @@ function update(dt) {
     }
   }
 
-  // Collision with remote players (EXACT same logic as AI cars)
-  // IMPORTANT: playerX and remoteX must be in same coordinate system (offset -1 to 1)
-  if (remotePlayers && remotePlayers.length > 0) {
-    var absolutePosition = position + playerZ;
-    for (var r = 0; r < remotePlayers.length; r++) {
-      var remotePlayer = remotePlayers[r];
-      var baseRemotePosition = remotePlayer.position || 0;
-      
-      // Cách 3: Đẩy lệch Z theo UID (giống render) để collision đúng với vị trí hiển thị
-      var uidHash = 0;
-      if (remotePlayer.uid) {
-        for (var i = 0; i < Math.min(remotePlayer.uid.length, 5); i++) {
-          uidHash += remotePlayer.uid.charCodeAt(i);
-        }
-      }
-      var zOffset = (uidHash % 5) * 20; // Lệch Z từ 0-80 theo UID
-      var remotePosition = baseRemotePosition + zOffset;
-      
-      var remoteSpeed = remotePlayer.speed || 0;
-      // remoteX should already be offset (-1 to 1) from Firebase sync
-      var remoteOffset = remotePlayer.playerX || 0;
-      var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
-      
-      // Skip collision at spawn (both players at start line) - nhưng dùng remotePosition đã lệch Z
-      if (absolutePosition < 50 && remotePosition < 50) {
-        continue;
-      }
-      
-      // Skip collision if both speeds are too low (prevent stuck at start)
-      if (speed < 100 && remoteSpeed < 100) {
-        continue;
-      }
-      
-      // EXACT same logic as AI cars - use offset for both
-      if (speed > remoteSpeed) {
-        if (Util.overlap(playerX, playerW, remoteOffset, remoteW, 0.8)) {
-          speed    = remoteSpeed * (remoteSpeed/speed);
-          position = Util.increase(remotePosition, -playerZ, trackLength);
-          break;
-        }
-      }
-    }
-  }
-
   playerX = Util.limit(playerX, -3, 3);
   speed   = Util.limit(speed, 0, currentMaxSpeed);
 
