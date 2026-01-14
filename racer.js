@@ -251,6 +251,11 @@ function update(dt) {
         continue;
       }
       
+      // Skip collision if both speeds are too low (prevent stuck at start)
+      if (speed < 100 && remoteSpeed < 100) {
+        continue;
+      }
+      
       // EXACT same logic as AI cars
       if (speed > remoteSpeed) {
         if (Util.overlap(playerX, playerW, remoteX, remoteW, 0.8)) {
