@@ -492,8 +492,27 @@ function render() {
 
     // Render remote players DIRECTLY in segment loop
     if (remotePlayers && remotePlayers.length > 0) {
+      var absolutePosition = position + playerZ;
+      
       remotePlayers.forEach((remotePlayer) => {
-        var remotePosition = remotePlayer.position || 0;
+        var baseRemotePosition = remotePlayer.position || 0;
+        
+        // Cách 3: Đẩy lệch Z theo UID để players đứng hàng ngang đẹp, không dính
+        var uidHash = 0;
+        if (remotePlayer.uid) {
+          for (var i = 0; i < Math.min(remotePlayer.uid.length, 5); i++) {
+            uidHash += remotePlayer.uid.charCodeAt(i);
+          }
+        }
+        var zOffset = (uidHash % 5) * 20; // Lệch Z từ 0-80 theo UID
+        var remotePosition = baseRemotePosition + zOffset;
+        
+        // Cách 2: Ignore render khi quá sát để tránh vẽ chồng sprite
+        var dz = Math.abs(remotePosition - absolutePosition);
+        if (dz < 30) {
+          return; // Skip render nếu quá gần (tránh chồng hình)
+        }
+        
         // remoteOffset should be offset (-1 to 1), same as playerX and car.offset
         var remoteOffset = remotePlayer.playerX || 0;
         var remoteSegment = findSegment(remotePosition);
@@ -505,8 +524,6 @@ function render() {
           var baseX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, remotePercent);
           var spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, remotePercent);
           
-          // remoteX should be offset (-1 to 1), same as playerX
-          var remoteOffset = remotePlayer.playerX || 0;
           // Calculate X position with lane offset (same as AI cars: car.offset * roadWidth * width/2)
           var spriteX = baseX + (spriteScale * remoteOffset * roadWidth * width/2);
           

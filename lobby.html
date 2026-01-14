@@ -211,11 +211,15 @@
         const assignedLane = Math.min(playerCount + 1, totalLanes);
         const laneOffset = ((assignedLane - 1) / (totalLanes - 1)) * 2 - 1; // -1 to 1
         
+        // Cách 1: Spawn player lệch Z một chút để tránh trùng
+        // Lệch Z từ 10-50 để players không spawn cùng vị trí
+        const zOffset = Math.random() * 40 + 10; // 10-50
+        
         // Add player to room
         const playerRef = ref(`rooms/${roomId}/players/${currentUser.uid}`);
         await set(playerRef, {
           name: playerName,
-          position: 0,
+          position: zOffset, // Lệch Z để tránh spawn cùng vị trí
           speed: 0,
           nitro: false,
           finished: false,
