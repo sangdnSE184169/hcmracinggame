@@ -273,7 +273,71 @@ function loadRoom(roomIdParam) {
 }
 
 /**
- * Update F1-style minimap with player positions (using actual track geometry)
+ * Generate F1-style circuit points
+ * This creates a proper 2D circuit layout based on the track curves
+ */
+function generateCircuitPoints() {
+  const points = [];
+  let x = 0;
+  let y = 0;
+  let angle = -Math.PI / 2; // Start pointing up
+  const stepLength = 2; // Length per segment on minimap
+  
+  // Sample every few segments to create smoother circuit
+  const sampleRate = 3;
+  
+  for (let i = 0; i < trackSegments.length; i += sampleRate) {
+    const segment = trackSegments[i];
+    
+    // Accumulate curve to change direction
+    // Curve values affect the angle of travel
+    angle += segment.curve * 0.015; // Scale factor for curve intensity
+    
+    // Move in current direction
+    x += Math.cos(angle) * stepLength;
+    y += Math.sin(angle) * stepLength;
+    
+    points.push({
+      x: x,
+      y: y,
+      segmentIndex: i,
+      z: segment.p2.z
+    });
+  }
+  
+  return points;
+}
+
+/**
+ * Get unique color for player based on name/uid
+ */
+function getPlayerColor(name, uid) {
+  const colors = [
+    '#e10600', // Ferrari Red
+    '#00d2be', // Mercedes Teal
+    '#0600ef', // Red Bull Blue
+    '#ff8700', // McLaren Orange
+    '#006f62', // Aston Martin Green
+    '#2b4562', // AlphaTauri Navy
+    '#900000', // Alfa Romeo Maroon
+    '#005aff', // Williams Blue
+    '#b6babd', // Haas Silver
+    '#ff69b4', // Pink
+  ];
+  
+  // Hash the uid or name to get consistent color
+  let hash = 0;
+  const str = uid || name || 'player';
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  return colors[Math.abs(hash) % colors.length];
+}
+
+/**
+ * Update F1-style minimap with player positions
+ * Creates a proper 2D circuit visualization
  */
 function updateMinimap() {
   if (!minimapCtx || !roomData || trackSegments.length === 0) {
@@ -283,126 +347,240 @@ function updateMinimap() {
 
   const width = minimapCanvas.width;
   const height = minimapCanvas.height;
-  const padding = 40;
+  const padding = 50;
 
   // Clear canvas
   minimapCtx.clearRect(0, 0, width, height);
 
-  // Background
-  minimapCtx.fillStyle = '#1a5c1a'; // Dark green (grass)
+  // Background gradient (grass effect)
+  const gradient = minimapCtx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, '#1a5c1a');
+  gradient.addColorStop(0.5, '#2d7a2d');
+  gradient.addColorStop(1, '#1a5c1a');
+  minimapCtx.fillStyle = gradient;
   minimapCtx.fillRect(0, 0, width, height);
 
-  // Calculate track positions - accumulate curve to get X offset
-  const trackPoints = [];
-  let x = 0;
+  // Generate circuit points
+  const circuitPoints = generateCircuitPoints();
   
-  trackSegments.forEach(segment => {
-    x = x + segment.curve;
-    trackPoints.push({
-      x: x,
-      z: segment.p2.z
-    });
-  });
+  if (circuitPoints.length === 0) {
+    console.log('No circuit points generated');
+    return;
+  }
   
   // Calculate bounds
-  let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
-  trackPoints.forEach(point => {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  circuitPoints.forEach(point => {
     minX = Math.min(minX, point.x);
     maxX = Math.max(maxX, point.x);
-    minZ = Math.min(minZ, point.z);
-    maxZ = Math.max(maxZ, point.z);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
   });
   
-  const trackWidth = maxX - minX || 1;
-  const trackDepth = maxZ - minZ || 1;
+  const circuitWidth = maxX - minX || 1;
+  const circuitHeight = maxY - minY || 1;
   
-  // Calculate scale to fit track in canvas
-  const scaleX = (width - 2 * padding) / trackWidth;
-  const scaleZ = (height - 2 * padding) / trackDepth;
-  const scale = Math.min(scaleX, scaleZ);
+  // Calculate scale to fit circuit in canvas with padding
+  const scaleX = (width - 2 * padding) / circuitWidth;
+  const scaleY = (height - 2 * padding) / circuitHeight;
+  const scale = Math.min(scaleX, scaleY);
   
-  const offsetX = padding - minX * scale;
-  const offsetZ = padding - minZ * scale;
+  // Center the circuit
+  const offsetX = (width - circuitWidth * scale) / 2 - minX * scale;
+  const offsetY = (height - circuitHeight * scale) / 2 - minY * scale;
   
-  // Draw track outline (F1 style - white line)
-  minimapCtx.strokeStyle = '#ffffff';
-  minimapCtx.lineWidth = 3;
+  // Helper function to convert circuit coords to canvas coords
+  const toCanvas = (point) => ({
+    x: point.x * scale + offsetX,
+    y: point.y * scale + offsetY
+  });
+
+  // Draw track shadow
+  minimapCtx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+  minimapCtx.lineWidth = 18;
   minimapCtx.lineCap = 'round';
   minimapCtx.lineJoin = 'round';
   minimapCtx.beginPath();
-  
-  // Draw track path
-  trackPoints.forEach((point, index) => {
-    const canvasX = point.x * scale + offsetX;
-    const canvasY = point.z * scale + offsetZ;
-    
+  circuitPoints.forEach((point, index) => {
+    const canvas = toCanvas(point);
     if (index === 0) {
-      minimapCtx.moveTo(canvasX, canvasY);
+      minimapCtx.moveTo(canvas.x + 3, canvas.y + 3);
     } else {
-      minimapCtx.lineTo(canvasX, canvasY);
+      minimapCtx.lineTo(canvas.x + 3, canvas.y + 3);
+    }
+  });
+  minimapCtx.stroke();
+
+  // Draw track surface (dark gray asphalt)
+  minimapCtx.strokeStyle = '#333333';
+  minimapCtx.lineWidth = 16;
+  minimapCtx.beginPath();
+  circuitPoints.forEach((point, index) => {
+    const canvas = toCanvas(point);
+    if (index === 0) {
+      minimapCtx.moveTo(canvas.x, canvas.y);
+    } else {
+      minimapCtx.lineTo(canvas.x, canvas.y);
+    }
+  });
+  minimapCtx.stroke();
+
+  // Draw track center line (racing line hint - subtle)
+  minimapCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  minimapCtx.lineWidth = 2;
+  minimapCtx.setLineDash([10, 10]);
+  minimapCtx.beginPath();
+  circuitPoints.forEach((point, index) => {
+    const canvas = toCanvas(point);
+    if (index === 0) {
+      minimapCtx.moveTo(canvas.x, canvas.y);
+    } else {
+      minimapCtx.lineTo(canvas.x, canvas.y);
+    }
+  });
+  minimapCtx.stroke();
+  minimapCtx.setLineDash([]);
+
+  // Draw track edge (white border)
+  minimapCtx.strokeStyle = '#ffffff';
+  minimapCtx.lineWidth = 2;
+  minimapCtx.beginPath();
+  circuitPoints.forEach((point, index) => {
+    const canvas = toCanvas(point);
+    if (index === 0) {
+      minimapCtx.moveTo(canvas.x, canvas.y);
+    } else {
+      minimapCtx.lineTo(canvas.x, canvas.y);
     }
   });
   minimapCtx.stroke();
   
-  // Draw start/finish line (yellow line)
-  const startPoint = trackPoints[0];
-  const startCanvasX = startPoint.x * scale + offsetX;
-  const startCanvasY = startPoint.z * scale + offsetZ;
+  // Draw sector markers (every third of the track)
+  const sectorInterval = Math.floor(circuitPoints.length / 3);
+  for (let s = 1; s < 3; s++) {
+    const sectorIndex = s * sectorInterval;
+    if (sectorIndex < circuitPoints.length) {
+      const sectorPoint = toCanvas(circuitPoints[sectorIndex]);
+      
+      minimapCtx.fillStyle = s === 1 ? '#ff0000' : '#0066ff';
+      minimapCtx.beginPath();
+      minimapCtx.arc(sectorPoint.x, sectorPoint.y, 4, 0, Math.PI * 2);
+      minimapCtx.fill();
+    }
+  }
   
-  minimapCtx.strokeStyle = '#ffff00';
-  minimapCtx.lineWidth = 4;
+  // Draw start/finish line
+  const startPoint = toCanvas(circuitPoints[0]);
+  const nextPoint = circuitPoints.length > 1 ? toCanvas(circuitPoints[1]) : startPoint;
+  
+  // Calculate perpendicular direction for start line
+  const dx = nextPoint.x - startPoint.x;
+  const dy = nextPoint.y - startPoint.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const perpX = -dy / len * 15;
+  const perpY = dx / len * 15;
+  
+  // Draw checkered start/finish line
+  minimapCtx.strokeStyle = '#ffffff';
+  minimapCtx.lineWidth = 6;
   minimapCtx.beginPath();
-  minimapCtx.moveTo(startCanvasX - 20, startCanvasY);
-  minimapCtx.lineTo(startCanvasX + 20, startCanvasY);
+  minimapCtx.moveTo(startPoint.x - perpX, startPoint.y - perpY);
+  minimapCtx.lineTo(startPoint.x + perpX, startPoint.y + perpY);
   minimapCtx.stroke();
   
-  // Draw checkered pattern
-  for (let i = 0; i < 3; i++) {
-    const rectX = startCanvasX - 15 + i * 10;
-    const rectY = startCanvasY - 2;
+  // Draw checkered pattern on start line
+  const numChecks = 6;
+  for (let i = 0; i < numChecks; i++) {
+    const t = i / numChecks;
+    const checkX = startPoint.x - perpX + (2 * perpX) * t;
+    const checkY = startPoint.y - perpY + (2 * perpY) * t;
     minimapCtx.fillStyle = i % 2 === 0 ? '#000000' : '#ffffff';
-    minimapCtx.fillRect(rectX, rectY, 10, 4);
+    minimapCtx.fillRect(checkX - 2, checkY - 3, 5, 6);
   }
+  
+  // Draw "START" label
+  minimapCtx.fillStyle = '#ffff00';
+  minimapCtx.font = 'bold 10px Arial';
+  minimapCtx.textAlign = 'center';
+  minimapCtx.textBaseline = 'bottom';
+  minimapCtx.fillText('START', startPoint.x, startPoint.y - 15);
   
   // Draw players (cars) on track
   if (roomData.players) {
     const players = Object.entries(roomData.players);
     
-    players.forEach(([uid, playerData]) => {
+    // Sort by position (leader first for z-ordering)
+    players.sort((a, b) => (b[1].position || 0) - (a[1].position || 0));
+    
+    players.forEach(([uid, playerData], ranking) => {
       const position = playerData.position || 0;
-      const playerX = playerData.playerX || 0;
       const playerName = playerData.name || 'Player';
       const isNitro = playerData.nitro || false;
+      const isFinished = playerData.finished || false;
 
-      // Find segment and position on track
-      const segmentIndex = Math.floor(position / SEGMENT_LENGTH) % trackSegments.length;
+      // Find position on circuit
+      // Map player position to circuit point index
+      const positionRatio = (position % trackLength) / trackLength;
+      const circuitIndex = Math.floor(positionRatio * circuitPoints.length);
+      const clampedIndex = Math.max(0, Math.min(circuitIndex, circuitPoints.length - 1));
       
-      if (segmentIndex >= 0 && segmentIndex < trackPoints.length) {
-        const point = trackPoints[segmentIndex];
-        
-        // Convert to minimap coordinates
-        const canvasX = point.x * scale + offsetX + (playerX * 15);
-        const canvasY = point.z * scale + offsetZ;
+      const point = circuitPoints[clampedIndex];
+      const canvas = toCanvas(point);
 
-        // Draw car (F1 style dot)
-        minimapCtx.fillStyle = isNitro ? '#ff9800' : '#2196F3';
-        minimapCtx.strokeStyle = '#ffffff';
-        minimapCtx.lineWidth = 2;
-        
-        minimapCtx.beginPath();
-        minimapCtx.arc(canvasX, canvasY, 7, 0, Math.PI * 2);
-        minimapCtx.fill();
-        minimapCtx.stroke();
-        
-        // Draw player name
-        minimapCtx.fillStyle = '#ffffff';
-        minimapCtx.font = 'bold 11px Arial';
-        minimapCtx.textAlign = 'left';
-        minimapCtx.textBaseline = 'middle';
-        minimapCtx.fillText(playerName, canvasX + 12, canvasY);
+      // Get player color
+      const playerColor = isNitro ? '#ff9800' : getPlayerColor(playerName, uid);
+      
+      // Draw car glow effect for leader
+      if (ranking === 0) {
+        minimapCtx.shadowColor = playerColor;
+        minimapCtx.shadowBlur = 10;
       }
+      
+      // Draw car body (F1 car shape - elongated oval)
+      minimapCtx.fillStyle = playerColor;
+      minimapCtx.strokeStyle = '#ffffff';
+      minimapCtx.lineWidth = 2;
+      
+      minimapCtx.beginPath();
+      minimapCtx.ellipse(canvas.x, canvas.y, 8, 5, 0, 0, Math.PI * 2);
+      minimapCtx.fill();
+      minimapCtx.stroke();
+      
+      // Reset shadow
+      minimapCtx.shadowBlur = 0;
+      
+      // Draw position number on car
+      minimapCtx.fillStyle = '#ffffff';
+      minimapCtx.font = 'bold 8px Arial';
+      minimapCtx.textAlign = 'center';
+      minimapCtx.textBaseline = 'middle';
+      minimapCtx.fillText(String(ranking + 1), canvas.x, canvas.y);
+      
+      // Draw player name with background
+      const nameText = isFinished ? `${playerName} ✓` : playerName;
+      minimapCtx.font = 'bold 11px Arial';
+      const textWidth = minimapCtx.measureText(nameText).width;
+      
+      // Name background
+      minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      minimapCtx.fillRect(canvas.x + 10, canvas.y - 8, textWidth + 6, 16);
+      
+      // Name text
+      minimapCtx.fillStyle = isNitro ? '#ff9800' : '#ffffff';
+      minimapCtx.textAlign = 'left';
+      minimapCtx.textBaseline = 'middle';
+      minimapCtx.fillText(nameText, canvas.x + 13, canvas.y);
     });
   }
+  
+  // Draw track info overlay
+  minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+  minimapCtx.fillRect(width - 120, height - 35, 110, 25);
+  minimapCtx.fillStyle = '#ffffff';
+  minimapCtx.font = '10px Arial';
+  minimapCtx.textAlign = 'right';
+  minimapCtx.textBaseline = 'middle';
+  minimapCtx.fillText(`Track: ${Math.round(trackLength / 1000)}km`, width - 15, height - 22);
   
   console.log('Minimap updated with', roomData.players ? Object.keys(roomData.players).length : 0, 'players');
 }
