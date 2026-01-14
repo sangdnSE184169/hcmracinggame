@@ -890,12 +890,10 @@ Game.run({
     { keys: [KEY.RIGHT, KEY.D], mode: 'down', action: function() { keyRight  = true;  } },
     { keys: [KEY.UP,    KEY.W], mode: 'down', action: function() { keyFaster = true;  } },
     { keys: [KEY.DOWN,  KEY.S], mode: 'down', action: function() { keySlower = true;  } },
-    { keys: [KEY.SPACE], mode: 'down', action: function() { keySpace = true; } },
     { keys: [KEY.LEFT,  KEY.A], mode: 'up',   action: function() { keyLeft   = false; } },
     { keys: [KEY.RIGHT, KEY.D], mode: 'up',   action: function() { keyRight  = false; } },
     { keys: [KEY.UP,    KEY.W], mode: 'up',   action: function() { keyFaster = false; } },
-    { keys: [KEY.DOWN,  KEY.S], mode: 'up',   action: function() { keySlower = false; } },
-    { keys: [KEY.SPACE], mode: 'up', action: function() { keySpace = false; } }
+    { keys: [KEY.DOWN,  KEY.S], mode: 'up',   action: function() { keySlower = false; } }
   ],
   ready: function(images) {
     background = images[0];
