@@ -186,7 +186,7 @@ document.getElementById('loadRoom').addEventListener('click', () => {
 document.getElementById('startRace').addEventListener('click', async () => {
   if (!roomId) return;
   
-  const roomRef = ref(db, `rooms/${roomId}`);
+  const roomRef = ref(`rooms/${roomId}`);
   await update(roomRef, {
     status: 'running',
     startTime: Date.now()
@@ -197,7 +197,7 @@ document.getElementById('startRace').addEventListener('click', async () => {
 document.getElementById('endRace').addEventListener('click', async () => {
   if (!roomId) return;
   
-  const roomRef = ref(db, `rooms/${roomId}`);
+  const roomRef = ref(`rooms/${roomId}`);
   await update(roomRef, {
     status: 'finished'
   });
@@ -233,7 +233,7 @@ document.getElementById('startQuiz').addEventListener('click', async () => {
 function loadRoom(roomIdParam) {
   // Cleanup previous listener
   if (roomListener && roomId) {
-    const roomRef = ref(db, `rooms/${roomId}`);
+    const roomRef = ref(`rooms/${roomId}`);
     off(roomRef);
   }
 
@@ -259,7 +259,7 @@ function loadRoom(roomIdParam) {
   }
 
   // Listen to room updates
-  const roomRef = ref(db, `rooms/${roomId}`);
+  const roomRef = ref(`rooms/${roomId}`);
   roomListener = onValue(roomRef, (snapshot) => {
     roomData = snapshot.val();
     if (roomData) {
@@ -460,7 +460,7 @@ function checkWinner() {
     showWinner(winner.name || 'Player');
     
     // Update room status
-    const roomRef = ref(db, `rooms/${roomId}`);
+    const roomRef = ref(`rooms/${roomId}`);
     update(roomRef, { status: 'finished' });
   }
 }
