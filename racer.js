@@ -251,20 +251,24 @@ function update(dt) {
 
   updateCars(dt, playerSegment, playerW);
 
+  var oldPosition = position;
   position = Util.increase(position, dt * speed, trackLength);
   
   // Track total distance for lap counting
-  var positionDelta = position - lastPosition;
+  var positionDelta = position - oldPosition;
   if (positionDelta < -trackLength / 2) {
-    // Wrapped around, add full track length
+    // Wrapped around (position went from near trackLength to near 0)
     totalDistance += trackLength + positionDelta;
   } else if (positionDelta > trackLength / 2) {
-    // Wrapped backwards (shouldn't happen), subtract
+    // Wrapped backwards (shouldn't happen in normal gameplay)
     totalDistance += positionDelta - trackLength;
   } else {
+    // Normal forward movement
     totalDistance += positionDelta;
   }
-  lastPosition = position;
+  
+  // Ensure totalDistance is always positive
+  if (totalDistance < 0) totalDistance = 0;
 
   if (keyLeft)
     playerX = playerX - dx;
