@@ -194,7 +194,9 @@ function update(dt) {
   }
   
   // Pause game when quiz is active (cars stop, time doesn't count)
-  if (isQuizActive()) {
+  // Only pause if quiz is actually active (not just initialized)
+  var quizActive = isQuizActive();
+  if (quizActive) {
     // Stop the car (decelerate to 0)
     speed = Util.accelerate(speed, decel, dt);
     speed = Math.max(0, speed);

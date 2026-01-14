@@ -84,11 +84,19 @@ export function initQuiz(roomIdParam, uidParam) {
   // Listen to quiz updates
   const quizRef = ref(`rooms/${roomId}/quiz`);
   quizListener = onValue(quizRef, (snapshot) => {
-    quizData = snapshot.val();
-    if (quizData && quizData.active) {
+    const data = snapshot.val();
+    quizData = data; // Store the data
+    
+    // Only show quiz if data exists AND active is explicitly true
+    if (data && data.active === true) {
       showQuiz();
     } else {
+      // Hide quiz if no data, or active is false/undefined
       hideQuiz();
+      // Reset quizData to null if quiz is not active
+      if (!data || data.active !== true) {
+        quizData = null;
+      }
     }
   });
 }
@@ -303,7 +311,9 @@ export async function endQuiz(roomIdParam) {
  * Check if quiz is currently active
  */
 export function isQuizActive() {
-  return quizData && quizData.active === true;
+  // Only return true if quizData exists AND active is explicitly true
+  if (!quizData) return false;
+  return quizData.active === true;
 }
 
 /**
