@@ -3,7 +3,7 @@
 //=========================================================================
 
 import { initMultiplayer, syncPosition, getRemoteCars, getRoomData, isRaceStarted, isRaceFinished, onRoomUpdate } from './multiplayer.js';
-import { initQuiz, autoCreateQuiz } from './quiz.js';
+import { initQuiz, autoCreateQuiz, isQuizActive } from './quiz.js';
 import { initFirebase } from './firebase.js';
 
 // Initialize Firebase
@@ -150,7 +150,7 @@ onRoomUpdate((roomData) => {
       
       if (currentPlayer.nitro && !nitroActive) {
         nitroActive = true;
-        nitroEndTime = Date.now() + 3000; // 3 seconds
+        nitroEndTime = Date.now() + 10000; // 10 seconds
         Dom.show('nitro-indicator');
       }
     }
@@ -190,6 +190,18 @@ function update(dt) {
   }
   
   if (finished) {
+    return;
+  }
+  
+  // Pause game when quiz is active (cars stop, time doesn't count)
+  if (isQuizActive()) {
+    // Stop the car (decelerate to 0)
+    speed = Util.accelerate(speed, decel, dt);
+    speed = Math.max(0, speed);
+    
+    // Still render but don't update position/time
+    // Don't update position, totalDistance, or lap time
+    updateHud('speed', 5 * Math.round(speed/500));
     return;
   }
 

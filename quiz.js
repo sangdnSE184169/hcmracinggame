@@ -150,7 +150,7 @@ function startCountdown(startTime) {
   const timerEl = document.getElementById('quizTimer');
   if (!timerEl) return;
 
-  const duration = 30000; // 30 seconds
+  const duration = 20000; // 20 seconds
   const updateTimer = () => {
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, duration - elapsed);
@@ -234,10 +234,10 @@ export async function autoCreateQuiz(roomIdParam) {
   
   await createQuiz(quiz.question, quiz.options, quiz.correctIndex);
   
-  // Auto-end quiz after 30 seconds
+  // Auto-end quiz after 20 seconds
   setTimeout(async () => {
     await endQuiz(roomIdParam);
-  }, 30000);
+  }, 20000);
 }
 
 /**
@@ -287,16 +287,23 @@ export async function endQuiz(roomIdParam) {
     const playerRef = ref(`rooms/${targetRoomId}/players/${winner.uid}`);
     await update(playerRef, { nitro: true });
 
-    // Auto-disable nitro after 3 seconds
+    // Auto-disable nitro after 10 seconds
     setTimeout(async () => {
       await update(playerRef, { nitro: false });
-    }, 3000);
+    }, 10000);
   }
 
   // Clear answers and end quiz
   await set(ref(`rooms/${targetRoomId}/answers`), {});
   const quizRef = ref(`rooms/${targetRoomId}/quiz`);
   await update(quizRef, { active: false });
+}
+
+/**
+ * Check if quiz is currently active
+ */
+export function isQuizActive() {
+  return quizData && quizData.active === true;
 }
 
 /**
