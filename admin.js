@@ -383,25 +383,27 @@ function updateMinimap() {
     const segment = trackSegments[segmentIndex];
     const percent = (position % SEGMENT_LENGTH) / SEGMENT_LENGTH;
     
-    // Calculate X position (Z-based + curve offset)
-    let curveOffset = 0;
-    for (let i = 0; i < segmentIndex; i++) {
-      curveOffset += trackSegments[i].curve * 200;
-    }
-    curveOffset += segment.curve * 200 * percent;
+    // Calculate X position using same logic as game: accumulate dx from curve
+    let carX = 0;
+    let carDx = 0;
     
-    const carZ = segment.p1.z + (segment.p2.z - segment.p1.z) * percent;
-    const carX = carZ * scale + offsetX + curveOffset;
+    // Accumulate up to current segment
+    for (let i = 0; i < segmentIndex; i++) {
+      carX = carX + carDx;
+      carDx = carDx + trackSegments[i].curve;
+    }
+    
+    // Interpolate within current segment
+    const segmentCurve = segment.curve;
+    const interpolatedDx = carDx + (segmentCurve * percent);
+    carX = carX + interpolatedDx * percent;
     
     // Calculate Y position (interpolate between segment points)
-    const carY = offsetY + (segment.p1.y + (segment.p2.y - segment.p1.y) * percent - avgY) * scale;
+    const carY = segment.p1.y + (segment.p2.y - segment.p1.y) * percent;
     
-    // Add lane offset (playerX is -1 to 1)
-    const laneOffset = playerX * 15;
-    
-    // Final position
-    const x = carX + laneOffset;
-    const y = carY;
+    // Convert to minimap coordinates
+    const x = carX * scale + offsetX + (playerX * 20); // Add lane offset
+    const y = carY * scale + offsetY;
 
     // Draw car (small rectangle)
     minimapCtx.fillStyle = isNitro ? '#ff9800' : '#2196F3';
