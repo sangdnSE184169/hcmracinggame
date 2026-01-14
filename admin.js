@@ -19,8 +19,134 @@ let roomData = null;
 let roomListener = null;
 let minimapCanvas = null;
 let minimapCtx = null;
-// Track length will be calculated from actual game data
-let TRACK_LENGTH = 20000; // Default, will be updated from room data
+// Track geometry (recreated from game logic)
+let trackSegments = [];
+let trackLength = 0;
+const SEGMENT_LENGTH = 200; // Same as in racer.js
+
+// Road constants (same as in racer.js)
+const ROAD = {
+  LENGTH: { NONE: 0, SHORT: 25, MEDIUM: 50, LONG: 100 },
+  HILL: { NONE: 0, LOW: 20, MEDIUM: 40, HIGH: 60 },
+  CURVE: { NONE: 0, EASY: 2, MEDIUM: 4, HARD: 6 }
+};
+
+// Helper functions to recreate track geometry
+function lastY() {
+  return trackSegments.length === 0 ? 0 : trackSegments[trackSegments.length - 1].p2.y;
+}
+
+function easeIn(a, b, percent) {
+  return a + (b - a) * Math.pow(percent, 2);
+}
+
+function easeInOut(a, b, percent) {
+  return a + (b - a) * ((-Math.cos(percent * Math.PI) / 2) + 0.5);
+}
+
+function addSegment(curve, y) {
+  const n = trackSegments.length;
+  trackSegments.push({
+    index: n,
+    p1: { y: lastY(), z: n * SEGMENT_LENGTH },
+    p2: { y: y, z: (n + 1) * SEGMENT_LENGTH },
+    curve: curve
+  });
+}
+
+function addRoad(enter, hold, leave, curve, y) {
+  const startY = lastY();
+  const endY = startY + (y * SEGMENT_LENGTH);
+  const total = enter + hold + leave;
+  
+  for (let n = 0; n < enter; n++) {
+    addSegment(easeIn(0, curve, n / enter), easeInOut(startY, endY, n / total));
+  }
+  for (let n = 0; n < hold; n++) {
+    addSegment(curve, easeInOut(startY, endY, (enter + n) / total));
+  }
+  for (let n = 0; n < leave; n++) {
+    addSegment(easeInOut(curve, 0, n / leave), easeInOut(startY, endY, (enter + hold + n) / total));
+  }
+}
+
+function addStraight(num) {
+  num = num || ROAD.LENGTH.MEDIUM;
+  addRoad(num, num, num, 0, 0);
+}
+
+function addHill(num, height) {
+  num = num || ROAD.LENGTH.MEDIUM;
+  height = height || ROAD.HILL.MEDIUM;
+  addRoad(num, num, num, 0, height);
+}
+
+function addCurve(num, curve, height) {
+  num = num || ROAD.LENGTH.MEDIUM;
+  curve = curve || ROAD.CURVE.MEDIUM;
+  height = height || ROAD.HILL.NONE;
+  addRoad(num, num, num, curve, height);
+}
+
+function addLowRollingHills(num, height) {
+  num = num || ROAD.LENGTH.SHORT;
+  height = height || ROAD.HILL.LOW;
+  addRoad(num, num, num, 0, height / 2);
+  addRoad(num, num, num, 0, -height);
+  addRoad(num, num, num, ROAD.CURVE.EASY, height);
+  addRoad(num, num, num, 0, 0);
+  addRoad(num, num, num, -ROAD.CURVE.EASY, height / 2);
+  addRoad(num, num, num, 0, 0);
+}
+
+function addSCurves() {
+  addRoad(ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, -ROAD.CURVE.EASY, ROAD.HILL.NONE);
+  addRoad(ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, ROAD.CURVE.MEDIUM, ROAD.HILL.MEDIUM);
+  addRoad(ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, ROAD.CURVE.EASY, -ROAD.HILL.LOW);
+  addRoad(ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, -ROAD.CURVE.EASY, ROAD.HILL.MEDIUM);
+  addRoad(ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, ROAD.LENGTH.MEDIUM, -ROAD.CURVE.MEDIUM, -ROAD.HILL.MEDIUM);
+}
+
+function addBumps() {
+  addRoad(10, 10, 10, 0, 5);
+  addRoad(10, 10, 10, 0, -2);
+  addRoad(10, 10, 10, 0, -5);
+  addRoad(10, 10, 10, 0, 8);
+  addRoad(10, 10, 10, 0, 5);
+  addRoad(10, 10, 10, 0, -7);
+  addRoad(10, 10, 10, 0, 5);
+  addRoad(10, 10, 10, 0, -2);
+}
+
+function addDownhillToEnd(num) {
+  num = num || 200;
+  addRoad(num, num, num, -ROAD.CURVE.EASY, -lastY() / SEGMENT_LENGTH);
+}
+
+function buildTrack() {
+  trackSegments = [];
+  
+  addStraight(ROAD.LENGTH.SHORT);
+  addLowRollingHills();
+  addSCurves();
+  addCurve(ROAD.LENGTH.MEDIUM, ROAD.CURVE.MEDIUM, ROAD.HILL.LOW);
+  addBumps();
+  addLowRollingHills();
+  addCurve(ROAD.LENGTH.LONG * 2, ROAD.CURVE.MEDIUM, ROAD.HILL.MEDIUM);
+  addStraight();
+  addHill(ROAD.LENGTH.MEDIUM, ROAD.HILL.HIGH);
+  addSCurves();
+  addCurve(ROAD.LENGTH.LONG, -ROAD.CURVE.MEDIUM, ROAD.HILL.NONE);
+  addHill(ROAD.LENGTH.LONG, ROAD.HILL.HIGH);
+  addCurve(ROAD.LENGTH.LONG, ROAD.CURVE.MEDIUM, -ROAD.HILL.LOW);
+  addBumps();
+  addHill(ROAD.LENGTH.LONG, -ROAD.HILL.MEDIUM);
+  addStraight();
+  addSCurves();
+  addDownhillToEnd();
+  
+  trackLength = trackSegments.length * SEGMENT_LENGTH;
+}
 
 // Initialize auth
 onAuthStateChanged(async (user) => {
@@ -115,6 +241,11 @@ function loadRoom(roomIdParam) {
     minimapCtx = minimapCanvas.getContext('2d');
     minimapCanvas.width = minimapCanvas.offsetWidth;
     minimapCanvas.height = minimapCanvas.offsetHeight;
+    
+    // Build track geometry once
+    if (trackSegments.length === 0) {
+      buildTrack();
+    }
   }
 
   // Listen to room updates
@@ -130,10 +261,10 @@ function loadRoom(roomIdParam) {
 }
 
 /**
- * Update F1-style minimap with player positions
+ * Update F1-style minimap with player positions (using actual track geometry)
  */
 function updateMinimap() {
-  if (!minimapCtx || !roomData || !roomData.players) return;
+  if (!minimapCtx || !roomData || !roomData.players || trackSegments.length === 0) return;
 
   const width = minimapCanvas.width;
   const height = minimapCanvas.height;
@@ -146,132 +277,159 @@ function updateMinimap() {
   minimapCtx.fillStyle = '#1a5c1a'; // Dark green (grass)
   minimapCtx.fillRect(0, 0, width, height);
 
-  // Calculate track length from max position or use default
-  const players = Object.entries(roomData.players);
-  let maxPosition = 0;
-  players.forEach(([uid, playerData]) => {
-    const pos = playerData.position || 0;
-    if (pos > maxPosition) maxPosition = pos;
+  // Calculate track bounds for scaling
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
+  let currentX = 0;
+  
+  trackSegments.forEach(segment => {
+    currentX += segment.curve * 50; // Accumulate curve to get X position
+    minX = Math.min(minX, currentX);
+    maxX = Math.max(maxX, currentX);
+    minY = Math.min(minY, segment.p1.y, segment.p2.y);
+    maxY = Math.max(maxY, segment.p1.y, segment.p2.y);
   });
-  // Use max position + buffer, or default if no players have moved
-  const currentTrackLength = maxPosition > 1000 ? maxPosition + 1000 : TRACK_LENGTH;
   
-  // Draw track outline - F1 style (curved track)
-  const trackWidth = width - 2 * padding;
-  const trackHeight = height - 2 * padding;
-  const centerX = padding + trackWidth * 0.5;
+  const trackWidth = maxX - minX;
+  const trackHeight = maxY - minY;
+  const scaleX = (width - 2 * padding) / Math.max(trackWidth, 1);
+  const scaleY = (height - 2 * padding) / Math.max(trackHeight, 1);
+  const scale = Math.min(scaleX, scaleY); // Use uniform scaling
   
-  // Draw track (road)
+  const offsetX = (width - (maxX - minX) * scale) / 2 - minX * scale;
+  const offsetY = (height - (maxY - minY) * scale) / 2 - minY * scale;
+  
+  // Draw track (road) using actual segments
   minimapCtx.strokeStyle = '#333333'; // Dark gray track
-  minimapCtx.lineWidth = 40;
+  minimapCtx.lineWidth = 40 * scale;
   minimapCtx.beginPath();
   
-  // Create a curved track path (S-curve like F1 tracks)
-  for (let i = 0; i <= 50; i++) {
-    const progress = i / 50;
-    const y = padding + trackHeight * progress;
-    // Add curve based on progress (S-curve)
-    const curveOffset = Math.sin(progress * Math.PI * 3) * (trackWidth * 0.25);
-    const x = centerX + curveOffset;
-    if (i === 0) {
-      minimapCtx.moveTo(x, y);
-    } else {
-      minimapCtx.lineTo(x, y);
+  currentX = 0;
+  trackSegments.forEach((segment, index) => {
+    const x1 = currentX * scale + offsetX;
+    const y1 = segment.p1.y * scale + offsetY;
+    currentX += segment.curve * 50; // Accumulate curve
+    const x2 = currentX * scale + offsetX;
+    const y2 = segment.p2.y * scale + offsetY;
+    
+    if (index === 0) {
+      minimapCtx.moveTo(x1, y1);
     }
-  }
+    minimapCtx.lineTo(x2, y2);
+  });
   minimapCtx.stroke();
   
   // Draw track center line (white dashed)
   minimapCtx.strokeStyle = '#ffffff';
-  minimapCtx.lineWidth = 2;
-  minimapCtx.setLineDash([10, 10]);
+  minimapCtx.lineWidth = 2 * scale;
+  minimapCtx.setLineDash([10 * scale, 10 * scale]);
   minimapCtx.beginPath();
-  for (let i = 0; i <= 50; i++) {
-    const progress = i / 50;
-    const y = padding + trackHeight * progress;
-    const curveOffset = Math.sin(progress * Math.PI * 3) * (trackWidth * 0.25);
-    const x = centerX + curveOffset;
-    if (i === 0) {
-      minimapCtx.moveTo(x, y);
-    } else {
-      minimapCtx.lineTo(x, y);
+  
+  currentX = 0;
+  trackSegments.forEach((segment, index) => {
+    const x1 = currentX * scale + offsetX;
+    const y1 = segment.p1.y * scale + offsetY;
+    currentX += segment.curve * 50;
+    const x2 = currentX * scale + offsetX;
+    const y2 = segment.p2.y * scale + offsetY;
+    
+    if (index === 0) {
+      minimapCtx.moveTo(x1, y1);
     }
-  }
+    minimapCtx.lineTo(x2, y2);
+  });
   minimapCtx.stroke();
   minimapCtx.setLineDash([]); // Reset line dash
   
   // Draw players (cars) on track
+  const players = Object.entries(roomData.players);
   players.forEach(([uid, playerData]) => {
     const position = playerData.position || 0;
-    const progress = Math.min(1, position / currentTrackLength);
     const playerX = playerData.playerX || 0;
     const playerSpeed = playerData.speed || 0;
     const playerName = playerData.name || 'Player';
     const isNitro = playerData.nitro || false;
 
-    // Calculate position on minimap following the curved track
-    const y = padding + trackHeight * progress;
-    const curveOffset = Math.sin(progress * Math.PI * 3) * (trackWidth * 0.25);
-    // Add lane offset (spread players horizontally based on playerX)
-    const laneOffset = (playerX * trackWidth * 0.15);
-    const x = centerX + curveOffset + laneOffset;
+    // Find segment and position on track
+    const segmentIndex = Math.floor(position / SEGMENT_LENGTH) % trackSegments.length;
+    const segment = trackSegments[segmentIndex];
+    const percent = (position % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+    
+    // Calculate X position (accumulate curve up to this segment)
+    let carX = 0;
+    for (let i = 0; i < segmentIndex; i++) {
+      carX += trackSegments[i].curve * 50;
+    }
+    carX += segment.curve * 50 * percent;
+    
+    // Calculate Y position (interpolate between segment points)
+    const carY = segment.p1.y + (segment.p2.y - segment.p1.y) * percent;
+    
+    // Add lane offset (playerX is -1 to 1, convert to pixels)
+    const laneOffset = playerX * 20 * scale;
+    
+    // Convert to minimap coordinates
+    const x = carX * scale + offsetX + laneOffset;
+    const y = carY * scale + offsetY;
 
-    // Draw car (small rectangle/circle)
-    minimapCtx.fillStyle = isNitro ? '#ff9800' : '#2196F3'; // Orange if nitro, blue otherwise
+    // Draw car (small rectangle)
+    minimapCtx.fillStyle = isNitro ? '#ff9800' : '#2196F3';
     minimapCtx.strokeStyle = '#ffffff';
     minimapCtx.lineWidth = 2;
     
-    // Draw car as a small rectangle (top-down view)
-    minimapCtx.fillRect(x - 6, y - 3, 12, 6);
-    minimapCtx.strokeRect(x - 6, y - 3, 12, 6);
+    const carSize = 8 * scale;
+    minimapCtx.fillRect(x - carSize, y - carSize/2, carSize * 2, carSize);
+    minimapCtx.strokeRect(x - carSize, y - carSize/2, carSize * 2, carSize);
     
     // Draw player name above car
     minimapCtx.fillStyle = '#ffffff';
-    minimapCtx.font = 'bold 11px Arial';
+    minimapCtx.font = `bold ${Math.max(10, 11 * scale)}px Arial`;
     minimapCtx.textAlign = 'center';
     minimapCtx.textBaseline = 'bottom';
     
-    // Add background for text readability
     const textMetrics = minimapCtx.measureText(playerName);
     const textWidth = textMetrics.width;
     minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    minimapCtx.fillRect(x - textWidth/2 - 3, y - 18, textWidth + 6, 14);
+    minimapCtx.fillRect(x - textWidth/2 - 3, y - carSize - 15, textWidth + 6, 14);
     
-    // Draw text
     minimapCtx.fillStyle = '#ffffff';
-    minimapCtx.fillText(playerName, x, y - 5);
+    minimapCtx.fillText(playerName, x, y - carSize - 2);
     
     // Draw speed indicator below car
     const speedText = Math.round(playerSpeed / 100) + ' km/h';
-    minimapCtx.font = '9px Arial';
-    minimapCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    minimapCtx.font = `${Math.max(8, 9 * scale)}px Arial`;
     const speedMetrics = minimapCtx.measureText(speedText);
     minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    minimapCtx.fillRect(x - speedMetrics.width/2 - 2, y + 4, speedMetrics.width + 4, 12);
+    minimapCtx.fillRect(x - speedMetrics.width/2 - 2, y + carSize + 2, speedMetrics.width + 4, 12);
     minimapCtx.fillStyle = '#ffffff';
-    minimapCtx.fillText(speedText, x, y + 14);
+    minimapCtx.fillText(speedText, x, y + carSize + 12);
   });
   
-  // Draw start/finish line
-  minimapCtx.strokeStyle = '#ffff00'; // Yellow
-  minimapCtx.lineWidth = 3;
-  minimapCtx.beginPath();
-  const startY = padding;
-  const startCurve = Math.sin(0 * Math.PI * 3) * (trackWidth * 0.25);
-  const startX = centerX + startCurve;
-  minimapCtx.moveTo(startX - 20, startY);
-  minimapCtx.lineTo(startX + 20, startY);
-  minimapCtx.stroke();
-  
-  // Draw finish line (at end of track)
-  const finishY = padding + trackHeight;
-  const finishCurve = Math.sin(1 * Math.PI * 3) * (trackWidth * 0.25);
-  const finishX = centerX + finishCurve;
-  minimapCtx.strokeStyle = '#ff0000'; // Red
-  minimapCtx.beginPath();
-  minimapCtx.moveTo(finishX - 20, finishY);
-  minimapCtx.lineTo(finishX + 20, finishY);
-  minimapCtx.stroke();
+  // Draw start line (at beginning of track)
+  if (trackSegments.length > 0) {
+    const startSegment = trackSegments[0];
+    const startX = offsetX;
+    const startY = startSegment.p1.y * scale + offsetY;
+    
+    minimapCtx.strokeStyle = '#ffff00'; // Yellow
+    minimapCtx.lineWidth = 3 * scale;
+    minimapCtx.beginPath();
+    minimapCtx.moveTo(startX - 20 * scale, startY);
+    minimapCtx.lineTo(startX + 20 * scale, startY);
+    minimapCtx.stroke();
+    
+    // Draw finish line (at end of track)
+    const finishSegment = trackSegments[trackSegments.length - 1];
+    let finishX = 0;
+    trackSegments.forEach(seg => finishX += seg.curve * 50);
+    finishX = finishX * scale + offsetX;
+    const finishY = finishSegment.p2.y * scale + offsetY;
+    
+    minimapCtx.strokeStyle = '#ff0000'; // Red
+    minimapCtx.beginPath();
+    minimapCtx.moveTo(finishX - 20 * scale, finishY);
+    minimapCtx.lineTo(finishX + 20 * scale, finishY);
+    minimapCtx.stroke();
+  }
 }
 
 /**
