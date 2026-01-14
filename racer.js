@@ -236,37 +236,33 @@ function update(dt) {
     }
   }
 
-  // Collision with remote players
+  // Collision with remote players (same logic as AI cars)
   if (remotePlayers && remotePlayers.length > 0) {
     var absolutePosition = position + playerZ;
-    remotePlayers.forEach((remotePlayer) => {
+    for (var r = 0; r < remotePlayers.length; r++) {
+      var remotePlayer = remotePlayers[r];
       var remotePosition = remotePlayer.position || 0;
+      var remoteSpeed = remotePlayer.speed || 0;
       var remoteX = remotePlayer.playerX || 0;
       var remoteSegment = findSegment(remotePosition);
       
-      // Check if on same segment or very close
-      if (remoteSegment.index === playerSegment.index || 
-          Math.abs(remotePosition - absolutePosition) < segmentLength * 2) {
-        var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
-        
-        // Check collision
-        if (Util.overlap(playerX, playerW, remoteX, remoteW, 0.8)) {
-          // Both players slow down
-          var collisionSpeed = Math.min(speed, remotePlayer.speed || 0) * 0.5;
-          speed = collisionSpeed;
+      // Only collide if player is faster than remote player (same as AI cars)
+      if (speed > remoteSpeed) {
+        // Check if on same segment or very close
+        if (remoteSegment.index === playerSegment.index || 
+            Math.abs(remotePosition - absolutePosition) < segmentLength * 2) {
+          var remoteW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
           
-          // Bounce effect - push players apart
-          if (playerX < remoteX) {
-            playerX = playerX - 0.1;
-          } else {
-            playerX = playerX + 0.1;
+          // Check collision (same overlap logic as AI cars)
+          if (Util.overlap(playerX, playerW, remoteX, remoteW, 0.8)) {
+            // Same speed reduction logic as AI cars
+            speed = remoteSpeed * (remoteSpeed/speed);
+            position = Util.increase(remotePosition, -playerZ, trackLength);
+            break;
           }
-          
-          // Sync collision to Firebase
-          syncPosition(absolutePosition, speed, nitroActive, finished, playerX);
         }
       }
-    });
+    }
   }
 
   playerX = Util.limit(playerX, -3, 3);
