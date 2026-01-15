@@ -19,56 +19,87 @@ let quizListener = null;
 // Hardcoded quiz questions
 const QUIZ_QUESTIONS = [
   {
-    question: "What is the capital of France?",
-    options: ["London", "Berlin", "Paris", "Madrid"],
-    correctIndex: 2
-  },
-  {
-    question: "Which planet is known as the Red Planet?",
-    options: ["Venus", "Mars", "Jupiter", "Saturn"],
+    question: "Nội dung nào được coi là \"sợi chỉ đỏ\" xuyên suốt toàn bộ di sản tư tưởng lý luận và hoạt động thực tiễn của Chủ tịch Hồ Chí Minh?",
+    options: [
+      "Phát triển kinh tế thị trường định hướng xã hội chủ nghĩa",
+      "Độc lập dân tộc gắn liền với chủ nghĩa xã hội",
+      "Mở rộng quan hệ ngoại giao đa phương hóa, đa dạng hóa",
+      "Xây dựng nền văn hóa tiên tiến, đậm đà bản sắc dân tộc"
+    ],
     correctIndex: 1
   },
   {
-    question: "What is 2 + 2?",
-    options: ["3", "4", "5", "6"],
+    question: "Sau Cách mạng Tháng Tám 1945, Chủ tịch Hồ Chí Minh đã khẳng định: \"Nước độc lập mà dân không hưởng hạnh phúc tự do, thì độc lập cũng...\"?",
+    options: [
+      "Là mục tiêu cuối cùng của cách mạng",
+      "Cần phải được bảo vệ bằng mọi giá",
+      "Chẳng có ý nghĩa gì",
+      "Sẽ sớm bị các thế lực thù địch thôn tính"
+    ],
+    correctIndex: 2
+  },
+  {
+    question: "Chân lý bất hủ nào được Chủ tịch Hồ Chí Minh khẳng định vào năm 1966, trở thành lẽ sống và nguồn cổ vũ to lớn cho dân tộc Việt Nam và các dân tộc bị áp bức trên thế giới?",
+    options: [
+      "Đoàn kết, đoàn kết, đại đoàn kết",
+      "Không có gì quý hơn độc lập, tự do",
+      "Dân là gốc của nước, nước lấy dân làm gốc",
+      "Muốn cứu nước phải đi theo con đường cách mạng vô sản"
+    ],
     correctIndex: 1
   },
   {
-    question: "Who wrote 'Romeo and Juliet'?",
-    options: ["Charles Dickens", "William Shakespeare", "Jane Austen", "Mark Twain"],
+    question: "Theo Chủ tịch Hồ Chí Minh, con đường duy nhất đúng đắn để giải phóng dân tộc và mang lại độc lập thật sự cho nhân dân Việt Nam là gì?",
+    options: [
+      "Con đường cách mạng dân chủ tư sản",
+      "Con đường cải cách lương bang, ôn hòa",
+      "Con đường cách mạng vô sản",
+      "Con đường phục hồi chế độ phong kiến tiến bộ"
+    ],
+    correctIndex: 2
+  },
+  {
+    question: "Trong cách diễn đạt dung dị, mộc mạc của Chủ tịch Hồ Chí Minh, mục tiêu cao nhất của chủ nghĩa xã hội là gì?",
+    options: [
+      "Xây dựng các khu công nghiệp nặng hiện đại",
+      "Làm cho dân giàu, nước mạnh, nhân dân được ấm no, hạnh phúc",
+      "Hoàn thành công cuộc cải cách ruộng đất trên cả nước",
+      "Thiết lập quan hệ ngoại giao với tất cả các nước tư bản"
+    ],
     correctIndex: 1
   },
   {
-    question: "What is the largest ocean on Earth?",
-    options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
-    correctIndex: 3
+    question: "Theo tư tưởng Chủ tịch Hồ Chí Minh, mối quan hệ giữa độc lập dân tộc và chủ nghĩa xã hội được xác định như thế nào?",
+    options: [
+      "Độc lập dân tộc là mục tiêu cuối cùng, chủ nghĩa xã hội chỉ là phương tiện",
+      "Độc lập dân tộc là cơ sở, tiền đề để tiến lên chủ nghĩa xã hội",
+      "Chủ nghĩa xã hội phải được xây dựng xong thì mới có độc lập dân tộc",
+      "Đây là hai mục tiêu tách biệt, không có mối liên hệ biện chứng"
+    ],
+    correctIndex: 1
   },
   {
-    question: "What is the chemical symbol for gold?",
-    options: ["Go", "Gd", "Au", "Ag"],
-    correctIndex: 2
+    question: "Theo Chủ tịch Hồ Chí Minh, chủ thể đóng vai trò quyết định, là động lực hàng đầu trong công cuộc xây dựng chủ nghĩa xã hội là ai?",
+    options: [
+      "Đội ngũ trí thức và chuyên gia nước ngoài",
+      "Nhân dân lao động dưới sự lãnh đạo của Đảng",
+      "Các tập đoàn kinh tế nhà nước lớn",
+      "Lực lượng vũ trang nhân dân"
+    ],
+    correctIndex: 1
   },
   {
-    question: "How many continents are there?",
-    options: ["5", "6", "7", "8"],
-    correctIndex: 2
-  },
-  {
-    question: "What is the speed of light?",
-    options: ["300,000 km/s", "150,000 km/s", "450,000 km/s", "600,000 km/s"],
-    correctIndex: 0
-  },
-  {
-    question: "Which gas do plants absorb from the atmosphere?",
-    options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"],
-    correctIndex: 2
-  },
-  {
-    question: "What is the smallest prime number?",
-    options: ["0", "1", "2", "3"],
-    correctIndex: 2
+    question: "Trong \"Kỷ nguyên mới - Kỷ nguyên vươn mình của dân tộc\", mục tiêu đến năm 2045 mà chúng ta phấn đấu thực hiện theo tư tưởng của Chủ tịch Hồ Chí Minh là gì?",
+    options: [
+      "Trở thành nước có thu nhập trung bình thấp",
+      "Trở thành nước phát triển, có thu nhập cao",
+      "Hoàn thành cơ bản quá trình xóa mù chữ trên toàn quốc",
+      "Trở thành một cường quốc quân sự hàng đầu khu vực"
+    ],
+    correctIndex: 1
   }
 ];
+
 
 let currentQuestionIndex = 0;
 
